@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block title %}Bosh sahifa — YouthGuard{% endblock %}
+{% block page_title %}Bosh sahifa{% endblock %}
+
+{% block topbar_actions %}
+<span style="font-size:13px;color:var(--text-muted)" id="currentDate"></span>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="fas fa-child"></i></div>
+    <div>
+      <div class="stat-value">{{ total_youth|default:0 }}</div>
+      <div class="stat-label">Jami yoshlar</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fas fa-handshake"></i></div>
+    <div>
+      <div class="stat-value">{{ total_meetings|default:0 }}</div>
+      <div class="stat-label">Jami uchrashuvlar</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+    <div>
+      <div class="stat-value">{{ pending|default:0 }}</div>
+      <div class="stat-label">Kutilmoqda</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+    <div>
+      <div class="stat-value">{{ verified|default:0 }}</div>
+      <div class="stat-label">Tasdiqlangan</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+    <div>
+      <div class="stat-value">{{ rejected|default:0 }}</div>
+      <div class="stat-label">Rad etilgan</div>
+    </div>
+  </div>
+  {% if user.is_admin %}
+  <div class="stat-card">
+    <div class="stat-icon purple"><i class="fas fa-bell"></i></div>
+    <div>
+      <div class="stat-value">{{ pending_verif|default:0 }}</div>
+      <div class="stat-label">Tasdiq kutmoqda</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+
+  <!-- Recent meetings -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-handshake"></i> So'nggi uchrashuvlar</div>
+      <a href="/uchrashuvlar/" class="btn btn-outline btn-sm">Barchasi</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Yosh</th><th>Rahbar</th><th>Sana</th><th>Holat</th></tr>
+        </thead>
+        <tbody>
+          {% for m in recent_meetings %}
+          <tr>
+            <td>
+              {% if user.role == 'yetakchi' %}
+                <a href="/uchrashuvlar/{{ m.meeting.id }}/" style="color:var(--primary);font-weight:600;text-decoration:none">{{ m.meeting.youth.full_name }}</a>
+              {% else %}
+                <a href="/uchrashuvlar/{{ m.id }}/" style="color:var(--primary);font-weight:600;text-decoration:none">{{ m.youth.full_name }}</a>
+              {% endif %}
+            </td>
+            <td style="color:var(--text-muted)">
+              {% if user.role == 'yetakchi' %}{{ m.meeting.rahbar.get_full_name }}
+              {% else %}{{ m.rahbar.get_full_name }}{% endif %}
+            </td>
+            <td style="color:var(--text-muted);font-size:12px">
+              {% if user.role == 'yetakchi' %}{{ m.created_at|date:"d.m.Y" }}
+              {% else %}{{ m.date|date:"d.m.Y" }}{% endif %}
+            </td>
+            <td>
+              {% if user.role == 'yetakchi' %}
+                {% if m.status == 'approved' %}<span class="badge badge-success">✓ Tasdiqlandi</span>
+                {% elif m.status == 'rejected' %}<span class="badge badge-danger">✗ Rad etildi</span>
+                {% else %}<span class="badge badge-warning">⏳ Kutilmoqda</span>{% endif %}
+              {% else %}
+                {% if m.status == 'verified' or m.status == 'force_approved' %}<span class="badge badge-success">✓ Tasdiqlandi</span>
+                {% elif m.status == 'pending' %}<span class="badge badge-warning">⏳ Kutilmoqda</span>
+                {% elif m.status == 'rejected' %}<span class="badge badge-danger">✗ Rad etildi</span>
+                {% elif m.status == 'impossible' %}<span class="badge badge-secondary">⚠ Imkonsiz</span>
+                {% else %}<span class="badge badge-secondary">{{ m.status }}</span>{% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-muted)">
+            <i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.3"></i>
+            Uchrashuvlar yo'q
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div>
+    {% if user.is_admin and chart_days %}
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-chart-line"></i> So'nggi 7 kun</div>
+        <span style="font-size:13px;color:var(--text-muted)">Uchrashuvlar soni</span>
+      </div>
+      <div class="card-body chart-wrapper">
+        <canvas id="weekChart" height="160"></canvas>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if user.is_admin and top_rahbars %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-trophy"></i> Faol rahbarlar</div>
+      </div>
+      <div style="padding:8px 16px">
+        {% for r in top_rahbars %}
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:1px solid var(--border)">
+          <div style="width:32px;height:32px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;flex-shrink:0">
+            {{ forloop.counter }}
+          </div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">{{ r.get_full_name|default:r.username }}</div>
+            <div style="font-size:12px;color:var(--text-muted)">{{ r.organization }}</div>
+          </div>
+          <div style="font-size:18px;font-weight:700;color:var(--primary)">{{ r.meet_count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if user.role == 'rahbar' %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-bolt"></i> Tezkor harakatlar</div>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+        <a href="/yoshlar/" class="btn btn-primary"><i class="fas fa-child"></i> Yoshlarim ro'yxati</a>
+        <a href="/uchrashuvlar/" class="btn btn-outline"><i class="fas fa-handshake"></i> Uchrashuvlarim</a>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if user.role == 'yetakchi' %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-tasks"></i> Kutilayotgan tasdiqlashlar</div>
+        <span class="nav-badge" style="margin-left:0;background:var(--danger);color:white;padding:2px 8px;border-radius:20px;font-size:11px">{{ pending|default:0 }}</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+        <a href="/uchrashuvlar/verifications/?status=pending" class="btn btn-primary">
+          <i class="fas fa-check-circle"></i> Tasdiqlashga o'tish
+        </a>
+        <a href="/yoshlar/" class="btn btn-outline"><i class="fas fa-child"></i> Yoshlarim</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if user.is_admin and recent_logs %}
+<div class="card" style="margin-top:0">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-history"></i> So'nggi harakatlar</div>
+    <a href="/uchrashuvlar/logs/" class="btn btn-outline btn-sm">Barchasi</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Foydalanuvchi</th><th>Harakat</th><th>Model</th><th>Vaqt</th></tr></thead>
+      <tbody>
+        {% for log in recent_logs %}
+        <tr>
+          <td><b>{{ log.user }}</b></td>
+          <td>{{ log.action }}</td>
+          <td><span class="badge badge-info">{{ log.model_name }}</span></td>
+          <td style="color:var(--text-muted);font-size:12px">{{ log.created_at|date:"d.m.Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('uz-UZ', {
+  weekday:'long', year:'numeric', month:'long', day:'numeric'
+});
+
+{% if chart_days %}
+(function() {
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+  script.onload = function() {
+    var ctx = document.getElementById('weekChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: {{ chart_days|safe }},
+        datasets: [{
+          label: 'Uchrashuvlar',
+          data: {{ chart_counts|safe }},
+          backgroundColor: 'rgba(22,160,133,0.15)',
+          borderColor: '#16a085',
+          borderWidth: 2,
+          borderRadius: 6,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  };
+  document.head.appendChild(script);
+})();
+{% endif %}
+</script>
+{% endblock %}

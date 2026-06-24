@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Excel Import — YouthGuard{% endblock %}
+{% block page_title %}Yoshlarni import qilish{% endblock %}
+
+{% block topbar_actions %}
+<a href="/yoshlar/import/sample/" class="btn btn-success btn-sm"><i class="fas fa-download"></i> Namuna Excel</a>
+<a href="/yoshlar/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:0 auto">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-file-excel" style="color:#1e8449"></i> Excel fayl yuklash</div>
+    </div>
+    <div class="card-body">
+      <div style="padding:20px;background:rgba(22,160,133,0.06);border-radius:var(--radius-sm);border:1px dashed var(--primary);margin-bottom:24px">
+        <h4 style="margin-bottom:8px;color:var(--primary)">Excel ustunlari (davlat formati):</h4>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:10px">1-qatorda sarlavhalar, 2-qatordan ma'lumotlar. Quyidagi 12 ustun:</p>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px 16px;font-size:12.5px">
+          <div><b>A</b> — №</div>
+          <div><b>G</b> — Biriktirilgan tizm</div>
+          <div><b>B</b> — FISH (yosh ismi)</div>
+          <div><b>H</b> — ish joyi va lavozimi</div>
+          <div><b>C</b> — Tug'ilgan yili (12.07.1998)</div>
+          <div><b>I</b> — Biriktirilgan mas'ul FISH</div>
+          <div><b>D</b> — Shahar/tuman nomi</div>
+          <div><b>J</b> — mas'ul tel raqami</div>
+          <div><b>E</b> — MFY nomi</div>
+          <div><b>K</b> — Mahalla yoshlar yetakchisi</div>
+          <div><b>F</b> — Toifasi</div>
+          <div style="color:#b8860b"><b>L</b> — yetakchi Telegram raqami ⭐</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:14px 16px;background:rgba(243,156,18,0.08);border-radius:var(--radius-sm);border-left:3px solid var(--warning);margin-bottom:20px">
+        <i class="fas fa-lightbulb" style="color:var(--warning);font-size:18px;margin-top:2px"></i>
+        <div style="font-size:13px;color:var(--text);line-height:1.6">
+          <b>Avtomatik:</b> Tuman, MFY, mas'ul (rahbar) va yetakchi <u>nomi va telefoni bo'yicha o'zi yaratiladi</u> — ID kerak emas.<br>
+          <b>⭐ Eng muhimi:</b> <b>L ustun</b> (yetakchi Telegram raqami) — yetakchi shu raqam bilan botga kirsa, tizim uni avtomatik taniydi.<br>
+          Ishonch uchun <a href="/yoshlar/import/sample/" style="color:var(--primary);font-weight:600">namuna Excel</a> ni yuklab oling.
+        </div>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Excel fayl (.xlsx)</label>
+          <input type="file" name="file" accept=".xlsx,.xls" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+          <i class="fas fa-upload"></i> Import qilish
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Uchrashuvlar — YouthGuard{% endblock %}
+{% block page_title %}Uchrashuvlar{% endblock %}
+
+{% block topbar_actions %}
+<a href="/uchrashuvlar/statistika/" class="btn btn-outline btn-sm"><i class="fas fa-chart-line"></i> Oylik statistika</a>
+<span style="font-size:13px;color:var(--text-muted)">Jami: <b>{{ page.paginator.count }}</b></span>
+{% endblock %}
+
+{% block content %}
+<!-- Status filter tabs -->
+<div class="status-tabs">
+  <a href="?" class="status-tab {% if not status_filter %}active{% endif %}">Barchasi</a>
+  {% for val, label in status_choices %}
+  <a href="?status={{ val }}" class="status-tab {% if status_filter == val %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Yosh</th>
+          <th>Rahbar</th>
+          <th>Sana</th>
+          <th>GPS</th>
+          <th>Rasm</th>
+          <th>Holat</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in page %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px">{{ m.id }}</td>
+          <td>
+            <div style="font-weight:600">{{ m.youth.full_name }}</div>
+            <div style="font-size:12px;color:var(--text-muted)">{{ m.youth.organization }}</div>
+          </td>
+          <td>
+            <div>{{ m.rahbar.get_full_name|default:m.rahbar.username }}</div>
+            <div style="font-size:12px;color:var(--text-muted)">{{ m.rahbar.organization }}</div>
+          </td>
+          <td style="font-size:13px">
+            <div>{{ m.date|date:"d.m.Y" }}</div>
+            <div style="color:var(--text-muted)">{{ m.date|date:"H:i" }}</div>
+          </td>
+          <td>
+            {% if m.latitude and m.longitude %}
+              <a href="https://maps.google.com/?q={{ m.latitude }},{{ m.longitude }}" target="_blank"
+                 style="color:var(--success);text-decoration:none" title="{{ m.latitude|floatformat:4 }}, {{ m.longitude|floatformat:4 }}">
+                <i class="fas fa-map-marker-alt"></i> Bor
+              </a>
+            {% else %}
+              <span style="color:var(--text-muted)"><i class="fas fa-times"></i> Yo'q</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.photo %}
+              <img src="{{ m.photo.url }}" class="photo-thumb" onclick="showPhoto('{{ m.photo.url }}')" style="cursor:pointer">
+            {% else %}
+              <span style="color:var(--text-muted)">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.status == 'verified' or m.status == 'force_approved' %}
+              <span class="badge badge-success"><i class="fas fa-check"></i> {{ m.get_status_display }}</span>
+            {% elif m.status == 'pending' %}
+              <span class="badge badge-warning"><i class="fas fa-clock"></i> {{ m.get_status_display }}</span>
+            {% elif m.status == 'rejected' %}
+              <span class="badge badge-danger"><i class="fas fa-times"></i> {{ m.get_status_display }}</span>
+            {% elif m.status == 'impossible' %}
+              <span class="badge badge-secondary"><i class="fas fa-ban"></i> {{ m.get_status_display }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/uchrashuvlar/{{ m.id }}/" class="btn btn-outline btn-sm">
+              <i class="fas fa-eye"></i>
+            </a>
+            {% if m.status == 'verified' or m.status == 'force_approved' %}
+            <a href="/uchrashuvlar/{{ m.id }}/pdf/" class="btn btn-outline btn-sm" title="PDF yuklab olish">
+              <i class="fas fa-file-pdf" style="color:var(--danger)"></i>
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8">
+          <div class="empty-state">
+            <i class="fas fa-handshake"></i>
+            <h3>Uchrashuvlar yo'q</h3>
+            <p>Hali hech qanday uchrashuv kiritilmagan</p>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page.has_other_pages %}
+<div class="pagination">
+  {% if page.has_previous %}
+    <a href="?page={{ page.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="page-btn">
+      <i class="fas fa-chevron-left"></i>
+    </a>
+  {% endif %}
+  {% for n in page.paginator.page_range %}
+    {% if n == page.number %}
+      <span class="page-btn active">{{ n }}</span>
+    {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}
+      <a href="?page={{ n }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="page-btn">{{ n }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if page.has_next %}
+    <a href="?page={{ page.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="page-btn">
+      <i class="fas fa-chevron-right"></i>
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Photo modal -->
+<div id="photoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center" onclick="this.style.display='none'">
+  <img id="modalImg" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showPhoto(url) {
+  const modal = document.getElementById('photoModal');
+  document.getElementById('modalImg').src = url;
+  modal.style.display = 'flex';
+}
+</script>
+{% endblock %}

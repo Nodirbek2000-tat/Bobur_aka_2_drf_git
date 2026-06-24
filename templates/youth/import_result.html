@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Import natijasi — YouthGuard{% endblock %}
+{% block page_title %}Import natijasi{% endblock %}
+{% block content %}
+<div style="max-width:600px;margin:0 auto">
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:40px">
+      <div style="font-size:56px;margin-bottom:16px">{% if created %}✅{% else %}⚠️{% endif %}</div>
+      <h2 style="margin-bottom:8px">{{ created }} ta yosh qo'shildi</h2>
+
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0">
+        <span class="badge badge-success" style="font-size:13px;padding:6px 14px">
+          <i class="fas fa-user-tie"></i> {{ new_rahbar }} ta yangi rahbar
+        </span>
+        <span class="badge badge-warning" style="font-size:13px;padding:6px 14px">
+          <i class="fas fa-user-check"></i> {{ new_yetakchi }} ta yangi yetakchi
+        </span>
+      </div>
+      <p style="color:var(--text-muted);font-size:13px">
+        Rahbar va yetakchilar telefon raqami bilan qo'shildi — ular botga shu raqam bilan kirsa, tizim taniydi.
+      </p>
+
+      {% if errors %}
+      <p style="color:var(--danger);margin-top:12px">{{ errors|length }} ta qatorda xato:</p>
+      <div style="margin-top:20px;text-align:left">
+        {% for e in errors %}
+        <div style="padding:8px 12px;background:rgba(231,76,60,0.08);border-radius:6px;margin-bottom:6px;font-size:13px;color:var(--danger)">{{ e }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:24px">
+        <a href="/yoshlar/" class="btn btn-primary"><i class="fas fa-list"></i> Yoshlar ro'yxati</a>
+        <a href="/yoshlar/import/" class="btn btn-outline"><i class="fas fa-redo"></i> Qayta import</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}Uchrashuv #{{ meeting.id }} — YouthGuard{% endblock %}
+{% block page_title %}Uchrashuv #{{ meeting.id }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/uchrashuvlar/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
+{% if meeting.status == 'verified' or meeting.status == 'force_approved' %}
+<a href="/uchrashuvlar/{{ meeting.id }}/pdf/" class="btn btn-primary btn-sm">
+  <i class="fas fa-file-pdf"></i> PDF yuklab olish
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+
+  <!-- Left: Meeting info -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-info-circle"></i> Uchrashuv ma'lumotlari</div>
+        {% if meeting.status == 'verified' or meeting.status == 'force_approved' %}
+          <span class="badge badge-success"><i class="fas fa-check"></i> {{ meeting.get_status_display }}</span>
+        {% elif meeting.status == 'pending' %}
+          <span class="badge badge-warning"><i class="fas fa-clock"></i> {{ meeting.get_status_display }}</span>
+        {% elif meeting.status == 'rejected' %}
+          <span class="badge badge-danger"><i class="fas fa-times"></i> {{ meeting.get_status_display }}</span>
+        {% elif meeting.status == 'impossible' %}
+          <span class="badge badge-secondary"><i class="fas fa-ban"></i> {{ meeting.get_status_display }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr>
+            <td style="padding:10px 0;color:var(--text-muted);font-size:13px;width:40%"><i class="fas fa-child"></i> Yosh</td>
+            <td style="padding:10px 0;font-weight:600">
+              <a href="/yoshlar/{{ meeting.youth.id }}/" style="color:var(--primary);text-decoration:none">
+                {{ meeting.youth.full_name }}
+              </a>
+            </td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text-muted);font-size:13px"><i class="fas fa-user-tie"></i> Rahbar</td>
+            <td style="padding:10px 0;font-weight:600">{{ meeting.rahbar.get_full_name }}</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text-muted);font-size:13px"><i class="fas fa-calendar"></i> Sana/vaqt</td>
+            <td style="padding:10px 0">{{ meeting.date|date:"d.m.Y H:i" }}</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text-muted);font-size:13px"><i class="fas fa-map-marker-alt"></i> Manzil</td>
+            <td style="padding:10px 0">{{ meeting.location_address|default:"—" }}</td>
+          </tr>
+          {% if meeting.latitude %}
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text-muted);font-size:13px"><i class="fas fa-crosshairs"></i> GPS</td>
+            <td style="padding:10px 0">
+              <a href="https://maps.google.com/?q={{ meeting.latitude }},{{ meeting.longitude }}" target="_blank"
+                 class="btn btn-outline btn-sm">
+                <i class="fas fa-external-link-alt"></i> {{ meeting.latitude|floatformat:5 }}, {{ meeting.longitude|floatformat:5 }}
+              </a>
+            </td>
+          </tr>
+          {% endif %}
+          {% if meeting.notes %}
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text-muted);font-size:13px"><i class="fas fa-comment"></i> Izoh</td>
+            <td style="padding:10px 0">{{ meeting.notes }}</td>
+          </tr>
+          {% endif %}
+          {% if meeting.impossible_reason %}
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--danger);font-size:13px"><i class="fas fa-exclamation-triangle"></i> Sabab</td>
+            <td style="padding:10px 0;color:var(--danger)">{{ meeting.impossible_reason }}</td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+
+    <!-- Verification info -->
+    {% if meeting.verification %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-check-circle"></i> Tasdiqlash ma'lumotlari</div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+          <span style="color:var(--text-muted)">Yetakchi:</span>
+          <b>{{ meeting.verification.verifier.get_full_name }}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+          <span style="color:var(--text-muted)">Holat:</span>
+          {% if meeting.verification.status == 'approved' %}
+            <span class="badge badge-success">Tasdiqlandi</span>
+          {% elif meeting.verification.status == 'rejected' %}
+            <span class="badge badge-danger">Rad etildi</span>
+          {% else %}
+            <span class="badge badge-warning">Kutilmoqda</span>
+          {% endif %}
+        </div>
+        {% if meeting.verification.rejection_reason %}
+        <div style="margin-top:12px;padding:12px;background:rgba(231,76,60,0.08);border-radius:8px;color:var(--danger)">
+          <b>Sabab:</b> {{ meeting.verification.rejection_reason }}
+        </div>
+        {% endif %}
+        {% if meeting.verification.verified_at %}
+        <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+          Vaqt: {{ meeting.verification.verified_at|date:"d.m.Y H:i" }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Admin actions -->
+    {% if user.is_admin and meeting.status == 'impossible' %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" style="color:var(--warning)"><i class="fas fa-gavel"></i> Admin qarori</div>
+      </div>
+      <div class="card-body">
+        <p style="color:var(--text-muted);margin-bottom:16px">Yetakchi javob bermagan. Majburiy tasdiqlash yoki bekor qilish:</p>
+        <div style="display:flex;gap:10px">
+          <button onclick="forceApprove({{ meeting.id }})" class="btn btn-success">
+            <i class="fas fa-check"></i> Majburiy tasdiqlash
+          </button>
+          <button onclick="forceReject({{ meeting.id }})" class="btn btn-danger">
+            <i class="fas fa-times"></i> Bekor qilish
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Photo + Map -->
+  <div>
+    {% if meeting.photo %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-camera"></i> Uchrashuv rasmi</div>
+        {% if meeting.photo_taken_at %}
+        <span style="font-size:12px;color:var(--text-muted)">{{ meeting.photo_taken_at|date:"d.m.Y H:i" }}</span>
+        {% endif %}
+      </div>
+      <div style="padding:12px">
+        <img src="{{ meeting.photo.url }}" style="width:100%;border-radius:var(--radius-sm);max-height:340px;object-fit:cover">
+      </div>
+    </div>
+    {% endif %}
+
+    {% if meeting.latitude and meeting.longitude %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-map"></i> GPS joylashuv</div>
+        <a href="https://maps.google.com/?q={{ meeting.latitude }},{{ meeting.longitude }}" target="_blank"
+           class="btn btn-outline btn-sm"><i class="fas fa-external-link-alt"></i> Ochish</a>
+      </div>
+      <div style="padding:12px">
+        <div class="map-container">
+          <iframe
+            src="https://www.openstreetmap.org/export/embed.html?bbox={{ meeting.longitude|add:'-0.005' }},{{ meeting.latitude|add:'-0.005' }},{{ meeting.longitude|add:'0.005' }},{{ meeting.latitude|add:'0.005' }}&layer=mapnik&marker={{ meeting.latitude }},{{ meeting.longitude }}"
+            style="width:100%;height:100%;border:none">
+          </iframe>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-muted)">
+          <i class="fas fa-map-marker-alt" style="color:var(--danger)"></i>
+          {{ meeting.latitude|floatformat:6 }}, {{ meeting.longitude|floatformat:6 }}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if meeting.document %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-qrcode"></i> Hujjat</div>
+      </div>
+      <div class="card-body" style="text-align:center">
+        <div style="font-size:24px;font-weight:800;letter-spacing:4px;color:var(--primary);margin-bottom:8px">
+          {{ meeting.document.qr_code }}
+        </div>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">QR kod raqami</p>
+        <a href="/uchrashuvlar/{{ meeting.id }}/pdf/" class="btn btn-primary">
+          <i class="fas fa-download"></i> PDF yuklab olish
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function forceApprove(id) {
+  if (!confirm('Majburiy tasdiqlashni tasdiqlaysizmi?')) return;
+  fetch(`/uchrashuvlar/api/${id}/force-approve/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'},
+    credentials: 'include',
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else alert('Xato: ' + JSON.stringify(d));
+  });
+}
+function getCookie(name) {
+  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name+'='))?.split('=')[1];
+}
+</script>
+{% endblock %}

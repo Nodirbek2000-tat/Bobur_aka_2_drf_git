@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Harakat jurnali — YouthGuard{% endblock %}
+{% block page_title %}Harakat jurnali (Audit Log){% endblock %}
+{% block content %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Foydalanuvchi</th><th>Harakat</th><th>Model</th><th>ID</th><th>IP</th><th>Vaqt</th></tr>
+      </thead>
+      <tbody>
+        {% for log in page %}
+        <tr>
+          <td><b>{{ log.user }}</b></td>
+          <td>{{ log.action }}</td>
+          <td><span class="badge badge-info">{{ log.model_name }}</span></td>
+          <td style="color:var(--text-muted)">#{{ log.object_id }}</td>
+          <td style="font-size:12px;color:var(--text-muted)">{{ log.ip_address|default:"—" }}</td>
+          <td style="font-size:12px;color:var(--text-muted)">{{ log.created_at|date:"d.m.Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6"><div class="empty-state"><i class="fas fa-history"></i><h3>Jurnal bo'sh</h3></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.has_other_pages %}
+<div class="pagination">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  {% for n in page.paginator.page_range %}
+    {% if n == page.number %}<span class="page-btn active">{{ n }}</span>
+    {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}<a href="?page={{ n }}" class="page-btn">{{ n }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

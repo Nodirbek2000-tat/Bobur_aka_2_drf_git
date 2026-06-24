@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — YouthGuard{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/accounts/users/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto">
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <i class="fas fa-{% if edit %}edit{% else %}user-plus{% endif %}"></i> {{ title }}
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Ism *</label>
+          <input class="form-control" name="first_name" value="{{ obj.first_name|default:'' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Familiya</label>
+          <input class="form-control" name="last_name" value="{{ obj.last_name|default:'' }}">
+        </div>
+      </div>
+
+      {% if not edit %}
+      <div class="form-group">
+        <label class="form-label">Username * <span style="font-size:11px;color:var(--text-muted)">(kirish uchun ishlatiladi)</span></label>
+        <input class="form-control" name="username" placeholder="masalan: rahbar_ali" required>
+      </div>
+      {% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Parol {% if edit %}<span style="font-size:11px;color:var(--text-muted)">(bo'sh qoldiring — o'zgarmaydi)</span>{% else %}*{% endif %}</label>
+          <input class="form-control" type="password" name="password" {% if not edit %}required minlength="6"{% endif %} placeholder="Kamida 6 ta belgi">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefon</label>
+          <input class="form-control" name="phone" value="{{ obj.phone|default:'' }}" placeholder="+998901234567">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Rol *</label>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+          {% for val, label in allowed_roles %}
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s"
+                 class="role-option" data-role="{{ val }}">
+            <input type="radio" name="role" value="{{ val }}" style="display:none"
+                   {% if obj and obj.role == val %}checked{% elif not obj and val == 'rahbar' %}checked{% endif %}>
+            <div style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;
+              {% if val == 'super_admin' %}background:linear-gradient(135deg,#8e44ad,#6c3483)
+              {% elif val == 'admin' %}background:linear-gradient(135deg,#2980b9,#1a5276)
+              {% elif val == 'rahbar' %}background:linear-gradient(135deg,#16a085,#0e6655)
+              {% else %}background:linear-gradient(135deg,#e67e22,#ca6f1e){% endif %}">
+              <i class="fas fa-{% if val == 'super_admin' %}crown{% elif val == 'admin' %}user-shield{% elif val == 'rahbar' %}user-tie{% else %}user-check{% endif %}"></i>
+            </div>
+            <div>
+              <div style="font-weight:600;font-size:13px">{{ label }}</div>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Tuman</label>
+          <select class="form-control" name="district" id="districtSelect">
+            <option value="">— Tanlang —</option>
+            {% for d in districts %}
+            <option value="{{ d.id }}" {% if obj and obj.district_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">MFY / Tashkilot</label>
+          <select class="form-control" name="organization" id="orgSelect">
+            <option value="">— Tanlang —</option>
+            {% for o in organizations %}
+            <option value="{{ o.id }}" data-district="{{ o.district_id }}"
+                    {% if obj and obj.organization_id == o.id %}selected{% endif %}>
+              {{ o.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Telegram ID <span style="font-size:11px;color:var(--text-muted)">(ixtiyoriy)</span></label>
+        <input class="form-control" name="telegram_id" type="number" value="{{ obj.telegram_id|default:'' }}" placeholder="1234567890">
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+        <a href="/accounts/users/" class="btn btn-outline">Bekor qilish</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> {% if edit %}Saqlash{% else %}Qo'shish{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+
+<style>
+.role-option:has(input:checked) {
+  border-color: var(--primary);
+  background: rgba(22,160,133,0.06);
+}
+</style>
+
+<script>
+document.querySelectorAll('.role-option').forEach(el => {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.role-option').forEach(x => x.style.borderColor = '');
+    this.querySelector('input').checked = true;
+    this.style.borderColor = 'var(--primary)';
+  });
+  if (el.querySelector('input').checked) el.style.borderColor = 'var(--primary)';
+});
+
+// Tuman bo'yicha MFY filter
+document.getElementById('districtSelect').addEventListener('change', function() {
+  const did = this.value;
+  document.querySelectorAll('#orgSelect option[data-district]').forEach(o => {
+    o.style.display = (!did || o.dataset.district === did) ? '' : 'none';
+  });
+  document.getElementById('orgSelect').value = '';
+});
+</script>
+{% endblock %}

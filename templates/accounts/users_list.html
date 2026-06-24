@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Foydalanuvchilar — YouthGuard{% endblock %}
+{% block page_title %}Foydalanuvchilar{% endblock %}
+
+{% block topbar_actions %}
+<a href="/accounts/users/add/" class="btn btn-primary btn-sm">
+  <i class="fas fa-plus"></i> Yangi foydalanuvchi
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Role kartochkalari -->
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+  <a href="?role=super_admin" class="stat-card" style="text-decoration:none;border-left:4px solid #8e44ad">
+    <div class="stat-icon purple"><i class="fas fa-crown"></i></div>
+    <div>
+      <div class="stat-value">{{ role_counts.super_admin }}</div>
+      <div class="stat-label">Super Admin</div>
+    </div>
+  </a>
+  <a href="?role=admin" class="stat-card" style="text-decoration:none;border-left:4px solid #2980b9">
+    <div class="stat-icon blue"><i class="fas fa-user-shield"></i></div>
+    <div>
+      <div class="stat-value">{{ role_counts.admin }}</div>
+      <div class="stat-label">Admin</div>
+    </div>
+  </a>
+  <a href="?role=rahbar" class="stat-card" style="text-decoration:none;border-left:4px solid #16a085">
+    <div class="stat-icon teal"><i class="fas fa-user-tie"></i></div>
+    <div>
+      <div class="stat-value">{{ role_counts.rahbar }}</div>
+      <div class="stat-label">Rahbar</div>
+    </div>
+  </a>
+  <a href="?role=yetakchi" class="stat-card" style="text-decoration:none;border-left:4px solid #e67e22">
+    <div class="stat-icon orange"><i class="fas fa-user-check"></i></div>
+    <div>
+      <div class="stat-value">{{ role_counts.yetakchi }}</div>
+      <div class="stat-label">Yetakchi</div>
+    </div>
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-users-cog"></i> Foydalanuvchilar ro'yxati</div>
+    <form method="get" style="display:flex;gap:8px;align-items:center">
+      {% if role_filter %}<input type="hidden" name="role" value="{{ role_filter }}">{% endif %}
+      <input class="form-control" name="q" value="{{ q }}" placeholder="Qidirish..." style="width:220px">
+      <button class="btn btn-outline btn-sm" type="submit"><i class="fas fa-search"></i></button>
+      {% if q or role_filter %}
+      <a href="/accounts/users/" class="btn btn-outline btn-sm"><i class="fas fa-times"></i></a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if role_filter %}
+  <div style="padding:12px 24px 0">
+    <span class="badge" style="background:rgba(22,160,133,0.1);color:var(--primary);font-size:13px">
+      Filtr: {{ role_filter }} &nbsp;<a href="/accounts/users/" style="color:inherit">✕</a>
+    </span>
+  </div>
+  {% endif %}
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ism Familiya</th>
+          <th>Username</th>
+          <th>Rol</th>
+          <th>Telegram</th>
+          <th>Tuman / MFY</th>
+          <th>Telefon</th>
+          <th>Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px">{{ forloop.counter }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:white;flex-shrink:0;
+                {% if u.role == 'super_admin' %}background:linear-gradient(135deg,#8e44ad,#6c3483)
+                {% elif u.role == 'admin' %}background:linear-gradient(135deg,#2980b9,#1a5276)
+                {% elif u.role == 'rahbar' %}background:linear-gradient(135deg,#16a085,#0e6655)
+                {% else %}background:linear-gradient(135deg,#e67e22,#ca6f1e){% endif %}">
+                {{ u.first_name|first|upper|default:u.username|first|upper }}
+              </div>
+              <div>
+                <div style="font-weight:600">{{ u.get_full_name|default:u.username }}</div>
+                <div style="font-size:11px;color:var(--text-muted)">ID: {{ u.id }}</div>
+              </div>
+            </div>
+          </td>
+          <td><code style="font-size:12px">{{ u.username }}</code></td>
+          <td>
+            {% if u.role == 'super_admin' %}
+              <span class="badge" style="background:rgba(142,68,173,0.12);color:#6c3483"><i class="fas fa-crown" style="font-size:10px"></i> Super Admin</span>
+            {% elif u.role == 'admin' %}
+              <span class="badge badge-info"><i class="fas fa-user-shield" style="font-size:10px"></i> Admin</span>
+            {% elif u.role == 'rahbar' %}
+              <span class="badge badge-success"><i class="fas fa-user-tie" style="font-size:10px"></i> Rahbar</span>
+            {% else %}
+              <span class="badge badge-warning"><i class="fas fa-user-check" style="font-size:10px"></i> Yetakchi</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.telegram_id %}
+              <span style="font-size:12px;color:var(--info)">
+                <i class="fab fa-telegram"></i>
+                {% if u.telegram_username %}@{{ u.telegram_username }}{% else %}{{ u.telegram_id }}{% endif %}
+              </span>
+            {% else %}
+              <span style="color:var(--text-muted);font-size:12px">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="font-size:12px">
+              {% if u.district %}<div><i class="fas fa-map-marker-alt" style="color:var(--text-muted)"></i> {{ u.district.name }}</div>{% endif %}
+              {% if u.organization %}<div style="color:var(--text-muted)"><i class="fas fa-building"></i> {{ u.organization.name }}</div>{% endif %}
+              {% if not u.district and not u.organization %}<span style="color:var(--text-muted)">—</span>{% endif %}
+            </div>
+          </td>
+          <td style="font-size:13px">{{ u.phone|default:"—" }}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <a href="/accounts/users/{{ u.id }}/edit/" class="btn btn-outline btn-sm" title="Tahrirlash">
+                <i class="fas fa-edit"></i>
+              </a>
+              {% if request.user.is_super_admin and u != request.user %}
+              <form method="post" action="/accounts/users/{{ u.id }}/delete/" onsubmit="return confirm('{{ u.get_full_name }}ni o\'chirishni tasdiqlaysizmi?')">
+                {% csrf_token %}
+                <button class="btn btn-danger btn-sm" title="O'chirish"><i class="fas fa-trash"></i></button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8">
+          <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <h3>Foydalanuvchi topilmadi</h3>
+            <p>Qidiruv yoki filtrni o'zgartiring</p>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

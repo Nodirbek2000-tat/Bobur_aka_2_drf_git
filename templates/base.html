@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="uz" data-theme="light" data-role="{{ user.role|default:'rahbar' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}YouthGuard{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" crossorigin="anonymous">
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="/">
+    <div class="logo">YG</div>
+    <div>
+      <div class="brand-name">YouthGuard</div>
+      <div class="brand-sub">Monitoring tizimi</div>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section"><span>Asosiy</span></div>
+    <a href="/" class="nav-item" id="nav-home">
+      <i class="fas fa-home"></i> Bosh sahifa
+    </a>
+
+    {% if user.role in "rahbar,yetakchi" or user.is_admin %}
+    <a href="/yoshlar/" class="nav-item" id="nav-youth">
+      <i class="fas fa-child"></i> Yoshlar
+    </a>
+    {% endif %}
+
+    <a href="/uchrashuvlar/" class="nav-item" id="nav-meetings">
+      <i class="fas fa-handshake"></i> Uchrashuvlar
+    </a>
+
+    <a href="/uchrashuvlar/statistika/" class="nav-item" id="nav-stats">
+      <i class="fas fa-chart-line"></i> Oylik statistika
+    </a>
+
+    {% if user.role == "yetakchi" or user.is_admin %}
+    <a href="/uchrashuvlar/verifications/" class="nav-item" id="nav-verif">
+      <i class="fas fa-check-circle"></i> Tasdiqlashlar
+    </a>
+    {% endif %}
+
+    {% if user.is_admin %}
+    <div class="nav-section"><span>Boshqaruv</span></div>
+    <a href="/accounts/users/" class="nav-item" id="nav-users">
+      <i class="fas fa-users-cog"></i> Foydalanuvchilar
+    </a>
+    <a href="/accounts/districts/" class="nav-item" id="nav-districts">
+      <i class="fas fa-map-marker-alt"></i> Tumanlar
+    </a>
+    <a href="/accounts/organizations/" class="nav-item" id="nav-orgs">
+      <i class="fas fa-building"></i> MFYlar
+    </a>
+    <div class="nav-section"><span>Admin</span></div>
+    <a href="/yoshlar/import/" class="nav-item">
+      <i class="fas fa-file-excel"></i> Excel import
+    </a>
+    <a href="/uchrashuvlar/logs/" class="nav-item">
+      <i class="fas fa-history"></i> Harakat jurnali
+    </a>
+    <a href="/admin/" class="nav-item" target="_blank">
+      <i class="fas fa-cog"></i> Admin panel
+    </a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">{{ user.first_name|first|upper|default:user.username|first|upper }}</div>
+      <div style="flex:1;min-width:0">
+        <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+        <div class="user-role">{{ user.get_role_display }}</div>
+      </div>
+      <a href="/accounts/logout/" class="btn-icon" title="Chiqish" style="border:none">
+        <i class="fas fa-sign-out-alt"></i>
+      </a>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main-wrapper">
+  <header class="topbar">
+    <button class="btn-icon sidebar-toggle" id="sidebarToggle">
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+    <div class="topbar-actions">
+      {% block topbar_actions %}{% endblock %}
+      <button class="btn-icon" id="themeToggle" title="Mavzu almashtirish">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="page-content fade-in">
+    {% if messages %}
+    <div class="messages">
+      {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% else %}
+{% block auth_content %}{% endblock %}
+{% endif %}
+
+<script src="{% static 'js/main.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

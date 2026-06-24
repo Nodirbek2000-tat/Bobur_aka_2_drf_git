@@ -1,0 +1,22 @@
+# Sirlar — hech qachon git ga qo'shilmasin
+.env
+.env.production
+
+# Django
+*.pyc
+__pycache__/
+db.sqlite3
+/media/
+/staticfiles/
+
+# Virtual env
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+.claude/
+
+# Certbot
+/certbot/

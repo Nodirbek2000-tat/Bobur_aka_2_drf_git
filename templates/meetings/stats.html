@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Oylik statistika — YouthGuard{% endblock %}
+{% block page_title %}Uchrashuvlar statistikasi{% endblock %}
+
+{% block topbar_actions %}
+<a href="/uchrashuvlar/" class="btn btn-outline btn-sm"><i class="fas fa-list"></i> Ro'yxat</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Oy tanlash -->
+<div class="status-tabs" style="margin-bottom:20px">
+  {% for m in months %}
+  <a href="?month={{ m.value }}" class="status-tab {% if m.active %}active{% endif %}">{{ m.label }}</a>
+  {% endfor %}
+</div>
+
+<!-- Umumiy kartochkalar -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="fas fa-handshake"></i></div>
+    <div>
+      <div class="stat-value">{{ totals.total }}</div>
+      <div class="stat-label">Jami uchrashuv ({{ sel_label }})</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+    <div>
+      <div class="stat-value">{{ totals.verified }}</div>
+      <div class="stat-label">Tasdiqlangan</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+    <div>
+      <div class="stat-value">{{ totals.pending }}</div>
+      <div class="stat-label">Kutilmoqda</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fas fa-user-tie"></i></div>
+    <div>
+      <div class="stat-value">{{ totals.rahbarlar }}</div>
+      <div class="stat-label">Faol rahbarlar</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start">
+
+  <!-- Rahbarlar reytingi -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-ranking-star"></i> Rahbarlar — {{ sel_label }}</div>
+      <span class="badge badge-info">{{ totals.rahbarlar }} ta</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Rahbar</th>
+            <th style="text-align:center">Jami</th>
+            <th style="text-align:center">✅</th>
+            <th style="text-align:center">⏳</th>
+            <th style="text-align:center">❌</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rahbar_stats %}
+          <tr>
+            <td>
+              {% if forloop.counter == 1 %}<span style="font-size:18px">🥇</span>
+              {% elif forloop.counter == 2 %}<span style="font-size:18px">🥈</span>
+              {% elif forloop.counter == 3 %}<span style="font-size:18px">🥉</span>
+              {% else %}<span style="color:var(--text-muted)">{{ forloop.counter }}</span>{% endif %}
+            </td>
+            <td>
+              <div style="font-weight:600">{{ r.rahbar__first_name }} {{ r.rahbar__last_name }}</div>
+              <div style="font-size:12px;color:var(--text-muted)">{{ r.rahbar__organization__name|default:"—" }}</div>
+            </td>
+            <td style="text-align:center"><b style="font-size:16px;color:var(--primary)">{{ r.total }}</b></td>
+            <td style="text-align:center;color:#1e8449">{{ r.verified }}</td>
+            <td style="text-align:center;color:#d68910">{{ r.pending }}</td>
+            <td style="text-align:center;color:#c0392b">{{ r.rejected }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <i class="fas fa-chart-bar"></i>
+              <h3>Bu oyda uchrashuv yo'q</h3>
+              <p>{{ sel_label }} oyida hech qanday uchrashuv qayd etilmagan</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Eng faol yoshlar -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-child"></i> Eng ko'p uchrashilgan yoshlar</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Yosh</th><th style="text-align:center">Marta</th></tr>
+        </thead>
+        <tbody>
+          {% for y in youth_stats %}
+          <tr>
+            <td style="color:var(--text-muted)">{{ forloop.counter }}</td>
+            <td>
+              <a href="/yoshlar/{{ y.youth__id }}/" style="color:var(--text);text-decoration:none;font-weight:500">
+                {{ y.youth__full_name }}
+              </a>
+            </td>
+            <td style="text-align:center"><span class="badge badge-success">{{ y.total }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:30px">Ma'lumot yo'q</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

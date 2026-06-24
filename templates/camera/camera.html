@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kameradan rasm olish</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#000; color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  height:100vh; display:flex; flex-direction:column; overflow:hidden;
+}
+
+.topbar {
+  padding:12px 16px;
+  background:rgba(0,0,0,0.85);
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #1a1a1a; flex-shrink:0;
+}
+.topbar h1 { font-size:15px; font-weight:600; }
+.counter {
+  background:#16a085; padding:4px 14px;
+  border-radius:20px; font-size:13px; font-weight:700;
+}
+
+/* Video full screen */
+.camera-container {
+  position:relative; flex:1; overflow:hidden; background:#0a0a0a;
+}
+video {
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+
+/* Overlay qoidalar */
+.guide-frame {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+}
+.guide-box {
+  width:75%; aspect-ratio:4/3;
+  border:2px solid rgba(22,160,133,0.7);
+  border-radius:16px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,0.35);
+}
+
+/* Controls */
+.controls {
+  background:#0a0a0a; padding:16px; flex-shrink:0;
+}
+
+/* Thumbnails */
+.thumbs { display:flex; gap:10px; margin-bottom:14px; }
+.thumb {
+  flex:1; aspect-ratio:1; border-radius:10px;
+  background:#1a1a1a; border:2px dashed #333;
+  position:relative; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+}
+.thumb img { width:100%; height:100%; object-fit:cover; }
+.thumb-num {
+  position:absolute; bottom:4px; left:0; right:0;
+  text-align:center; font-size:11px; color:#777;
+  background:rgba(0,0,0,0.5); padding:2px;
+}
+.thumb.done { border-color:#27ae60; border-style:solid; }
+.thumb .del {
+  position:absolute; top:4px; right:4px;
+  width:20px; height:20px; border-radius:50%;
+  background:rgba(231,76,60,0.9); color:#fff;
+  border:none; cursor:pointer; font-size:11px;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* Buttons row */
+.btn-row { display:flex; gap:10px; align-items:center; }
+.btn-flip {
+  width:52px; height:52px; border-radius:50%;
+  background:#1a1a1a; border:1px solid #333;
+  color:#aaa; font-size:20px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.btn-flip:active { background:#2a2a2a; }
+.btn-capture {
+  flex:1; height:60px; border-radius:14px;
+  background:linear-gradient(135deg,#16a085,#0e6655);
+  color:#fff; border:none; font-size:16px; font-weight:700;
+  cursor:pointer; display:flex; align-items:center;
+  justify-content:center; gap:8px;
+}
+.btn-capture:active { opacity:0.85; }
+.btn-capture:disabled { background:#1a1a1a; color:#444; cursor:not-allowed; }
+
+.hint {
+  text-align:center; font-size:12px; color:#555;
+  margin-top:10px;
+}
+
+/* Submitting overlay */
+.submitting {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.85);
+  align-items:center; justify-content:center;
+  flex-direction:column; gap:16px; z-index:999;
+}
+.spinner {
+  width:50px; height:50px; border-radius:50%;
+  border:4px solid #333; border-top-color:#16a085;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Success */
+.success {
+  display:none; position:fixed; inset:0;
+  background:#000;
+  align-items:center; justify-content:center;
+  flex-direction:column; text-align:center;
+  padding:40px; z-index:1000;
+}
+.success-icon {
+  width:90px; height:90px; border-radius:50%;
+  background:linear-gradient(135deg,#27ae60,#1e8449);
+  display:flex; align-items:center; justify-content:center;
+  font-size:42px; margin-bottom:24px;
+}
+.success h2 { font-size:24px; margin-bottom:12px; }
+.success p { color:#888; font-size:14px; line-height:1.6; }
+.success .bot-hint {
+  margin-top:20px; padding:14px 20px;
+  background:#1a1a1a; border-radius:12px;
+  font-size:13px; color:#aaa;
+  border-left:3px solid #16a085;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📷 Rasm olish</h1>
+  <span class="counter" id="counter">0 / 2</span>
+</div>
+
+<div class="camera-container">
+  <video id="video" autoplay playsinline muted></video>
+  <div class="guide-frame"><div class="guide-box"></div></div>
+</div>
+
+<div class="controls">
+  <div class="thumbs">
+    <div class="thumb" id="t0">
+      <span style="font-size:24px;color:#2a2a2a">📷</span>
+      <span class="thumb-num">1-rasm</span>
+    </div>
+    <div class="thumb" id="t1">
+      <span style="font-size:24px;color:#2a2a2a">📷</span>
+      <span class="thumb-num">2-rasm</span>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-flip" onclick="flip()" title="Kamera almashtirish">🔄</button>
+    <button class="btn-capture" id="captureBtn" onclick="capture()">
+      📸 Rasm ol
+    </button>
+  </div>
+  <p class="hint" id="hint">1-rasmni olish uchun tugmani bosing</p>
+</div>
+
+<div class="submitting" id="submitting">
+  <div class="spinner"></div>
+  <p style="color:#aaa">Yuborilmoqda...</p>
+</div>
+
+<div class="success" id="success">
+  <div class="success-icon">✅</div>
+  <h2>Rasmlar yuborildi!</h2>
+  <p>Botga <b>"▶️ Davom etish"</b> tugmasi keldi<br>uni bosing va so'rovnoma davom etadi</p>
+  <div class="bot-hint">💡 Telegram xabarnomani tekshiring</div>
+</div>
+
+<canvas id="c" style="display:none"></canvas>
+
+<script>
+const SID = "{{ session.session_id }}";
+const BASE = "{{ request.scheme }}://{{ request.get_host }}";
+
+let stream, facing = 'environment';
+let photos = [null, null];
+let slot = 0;
+
+async function startCam() {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing, width:{ideal:1920}, height:{ideal:1080} }
+    });
+    document.getElementById('video').srcObject = stream;
+  } catch(e) {
+    alert('Kameraga ruxsat bering: ' + e.message);
+  }
+}
+
+function flip() {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  startCam();
+}
+
+function capture() {
+  const vid = document.getElementById('video');
+  const canvas = document.getElementById('c');
+  canvas.width = vid.videoWidth || 1280;
+  canvas.height = vid.videoHeight || 720;
+  const ctx = canvas.getContext('2d');
+  if (facing === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(vid, 0, 0);
+  photos[slot] = canvas.toDataURL('image/jpeg', 0.88);
+
+  // Thumbnail ko'rsat
+  const thumb = document.getElementById('t' + slot);
+  thumb.innerHTML = `
+    <img src="${photos[slot]}">
+    <span class="thumb-num">${slot+1}-rasm ✓</span>
+    <button class="del" onclick="del(event,${slot})">✕</button>
+  `;
+  thumb.classList.add('done');
+
+  // Keyingi slotga o'tish
+  const next = photos.findIndex(p => !p);
+  if (next !== -1) slot = next;
+
+  updateUI();
+
+  // 2 ta rasm olindi → avtomatik yuborish
+  if (photos.filter(Boolean).length === 2) {
+    setTimeout(submit, 600);
+  }
+}
+
+function del(e, idx) {
+  e.stopPropagation();
+  photos[idx] = null;
+  const thumb = document.getElementById('t' + idx);
+  thumb.innerHTML = `<span style="font-size:24px;color:#2a2a2a">📷</span><span class="thumb-num">${idx+1}-rasm</span>`;
+  thumb.classList.remove('done');
+  slot = idx;
+  updateUI();
+}
+
+function updateUI() {
+  const count = photos.filter(Boolean).length;
+  document.getElementById('counter').textContent = count + ' / 2';
+  const hints = [
+    '1-rasmni olish uchun tugmani bosing',
+    '2-rasmni oling — yoki 1 ta bilan yuborish uchun kuting',
+    '✅ 2 ta rasm tayyor — avtomatik yuborilmoqda...'
+  ];
+  document.getElementById('hint').textContent = hints[Math.min(count, 2)];
+}
+
+async function submit() {
+  const count = photos.filter(Boolean).length;
+  if (count < 1) return;
+
+  document.getElementById('submitting').style.display = 'flex';
+  document.getElementById('captureBtn').disabled = true;
+
+  try {
+    const resp = await fetch(`${BASE}/uchrashuvlar/camera/${SID}/upload/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ photos })
+    });
+    const data = await resp.json();
+    document.getElementById('submitting').style.display = 'none';
+    if (data.ok) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      document.getElementById('success').style.display = 'flex';
+    } else {
+      document.getElementById('captureBtn').disabled = false;
+      alert("Yuborishda xato. Qayta urinib ko'ring.");
+    }
+  } catch(e) {
+    document.getElementById('submitting').style.display = 'none';
+    document.getElementById('captureBtn').disabled = false;
+    alert('Server bilan bog\'lanishda xato: ' + e.message);
+  }
+}
+
+// 1 ta rasm bilan 5 soniyada avtomatik yuborish
+let autoTimer = null;
+function scheduleAuto() {
+  clearTimeout(autoTimer);
+  if (photos.filter(Boolean).length === 1) {
+    autoTimer = setTimeout(() => {
+      document.getElementById('hint').textContent = '⏳ 1 ta rasm bilan yuborilmoqda...';
+      submit();
+    }, 5000);
+  }
+}
+
+// Override capture to schedule auto
+const _origCapture = capture;
+window.capture = function() {
+  _origCapture();
+  scheduleAuto();
+}
+
+startCam();
+</script>
+</body>
+</html>

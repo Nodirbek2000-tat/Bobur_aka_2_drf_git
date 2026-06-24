@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Yoshlar — YouthGuard{% endblock %}
+{% block page_title %}Yoshlar ro'yxati{% endblock %}
+
+{% block topbar_actions %}
+{% if user.is_admin %}
+<a href="/yoshlar/import/" class="btn btn-primary btn-sm">
+  <i class="fas fa-file-excel"></i> Excel import
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Search -->
+<div class="card" style="margin-bottom:20px">
+  <div class="card-body" style="padding:16px 20px">
+    <form method="GET">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="flex:1;position:relative">
+          <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)"></i>
+          <input type="text" name="q" value="{{ search }}" class="form-control" placeholder="Ism yoki manzil bo'yicha qidirish..." style="padding-left:40px">
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Qidirish</button>
+        {% if search %}<a href="?" class="btn btn-outline"><i class="fas fa-times"></i></a>{% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-child"></i> Yoshlar</div>
+    <span style="font-size:13px;color:var(--text-muted)">{{ total }} ta</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Ism</th>
+          <th>Yosh</th>
+          <th>Kategoriya</th>
+          <th>MFY</th>
+          <th>Rahbar</th>
+          <th>Yetakchi</th>
+          <th>Uchrashuvlar</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for y in page %}
+        <tr>
+          <td>
+            <div style="font-weight:600">{{ y.full_name }}</div>
+            <div style="font-size:12px;color:var(--text-muted)">{{ y.address|truncatechars:30 }}</div>
+          </td>
+          <td style="font-size:13px">{{ y.age }} yosh</td>
+          <td>
+            <span class="badge badge-info" style="font-size:11px">{{ y.get_category_display }}</span>
+          </td>
+          <td style="font-size:13px;color:var(--text-muted)">{{ y.organization|default:"—" }}</td>
+          <td style="font-size:13px">{{ y.rahbar.get_full_name|default:"—" }}</td>
+          <td style="font-size:13px">{{ y.yetakchi.get_full_name|default:"—" }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="height:6px;width:60px;background:var(--border);border-radius:3px;overflow:hidden">
+                {% if y.total_meetings %}
+                <div style="height:100%;width:{% widthratio y.approved_meetings y.total_meetings 100 %}%;background:var(--success);border-radius:3px"></div>
+                {% endif %}
+              </div>
+              <span style="font-size:12px;color:var(--text-muted)">{{ y.approved_meetings }}/{{ y.total_meetings }}</span>
+            </div>
+          </td>
+          <td>
+            <a href="/yoshlar/{{ y.id }}/" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8">
+          <div class="empty-state">
+            <i class="fas fa-child"></i>
+            <h3>Yoshlar yo'q</h3>
+            <p>Excel orqali yoshlarni import qiling</p>
+            {% if user.is_admin %}
+            <a href="/yoshlar/import/" class="btn btn-primary" style="margin-top:16px">
+              <i class="fas fa-file-excel"></i> Import qilish
+            </a>
+            {% endif %}
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.has_other_pages %}
+<div class="pagination">
+  {% if page.has_previous %}
+    <a href="?page={{ page.previous_page_number }}{% if search %}&q={{ search }}{% endif %}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
+  {% endif %}
+  {% for n in page.paginator.page_range %}
+    {% if n == page.number %}
+      <span class="page-btn active">{{ n }}</span>
+    {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}
+      <a href="?page={{ n }}{% if search %}&q={{ search }}{% endif %}" class="page-btn">{{ n }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if page.has_next %}
+    <a href="?page={{ page.next_page_number }}{% if search %}&q={{ search }}{% endif %}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

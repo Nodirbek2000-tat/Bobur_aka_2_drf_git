@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Tasdiqlashlar — YouthGuard{% endblock %}
+{% block page_title %}Tasdiqlashlar{% endblock %}
+
+{% block content %}
+<div class="status-tabs">
+  <a href="?status=pending" class="status-tab {% if status_filter == 'pending' %}active{% endif %}">
+    ⏳ Kutilmoqda
+  </a>
+  <a href="?status=approved" class="status-tab {% if status_filter == 'approved' %}active{% endif %}">
+    ✓ Tasdiqlangan
+  </a>
+  <a href="?status=rejected" class="status-tab {% if status_filter == 'rejected' %}active{% endif %}">
+    ✗ Rad etilgan
+  </a>
+  <a href="?" class="status-tab {% if not status_filter %}active{% endif %}">Barchasi</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Yosh</th>
+          <th>Rahbar</th>
+          <th>Uchrashuv sanasi</th>
+          <th>Yetakchi</th>
+          <th>Rasm</th>
+          <th>Holat</th>
+          <th>Amal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in page %}
+        <tr>
+          <td>
+            <a href="/uchrashuvlar/{{ v.meeting.id }}/" style="color:var(--primary);font-weight:600;text-decoration:none">
+              {{ v.meeting.youth.full_name }}
+            </a>
+          </td>
+          <td>{{ v.meeting.rahbar.get_full_name }}</td>
+          <td style="font-size:13px">{{ v.meeting.date|date:"d.m.Y H:i" }}</td>
+          <td>{{ v.verifier.get_full_name }}</td>
+          <td>
+            {% if v.meeting.photo %}
+              <img src="{{ v.meeting.photo.url }}" class="photo-thumb">
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if v.status == 'approved' %}
+              <span class="badge badge-success"><i class="fas fa-check"></i> Tasdiqlandi</span>
+            {% elif v.status == 'rejected' %}
+              <span class="badge badge-danger"><i class="fas fa-times"></i> Rad etildi</span>
+            {% else %}
+              <span class="badge badge-warning"><i class="fas fa-clock"></i> Kutilmoqda</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if v.status == 'pending' and user.role == 'yetakchi' %}
+            <div style="display:flex;gap:6px">
+              <button onclick="verify({{ v.meeting.id }}, 'approve')"
+                class="btn btn-success btn-sm" title="Tasdiqlash">
+                <i class="fas fa-check"></i>
+              </button>
+              <button onclick="rejectPrompt({{ v.meeting.id }})"
+                class="btn btn-danger btn-sm" title="Rad etish">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            {% else %}
+            <a href="/uchrashuvlar/{{ v.meeting.id }}/" class="btn btn-outline btn-sm">
+              <i class="fas fa-eye"></i>
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">
+          <div class="empty-state">
+            <i class="fas fa-check-double"></i>
+            <h3>Hamma narsani tekshirdingiz!</h3>
+            <p>Bu filtrdagi tasdiqlashlar yo'q</p>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.has_other_pages %}
+<div class="pagination">
+  {% if page.has_previous %}
+    <a href="?page={{ page.previous_page_number }}&status={{ status_filter }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
+  {% endif %}
+  {% for n in page.paginator.page_range %}
+    {% if n == page.number %}
+      <span class="page-btn active">{{ n }}</span>
+    {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}
+      <a href="?page={{ n }}&status={{ status_filter }}" class="page-btn">{{ n }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if page.has_next %}
+    <a href="?page={{ page.next_page_number }}&status={{ status_filter }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Reject modal -->
+<div id="rejectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--card-bg);border-radius:var(--radius);padding:32px;width:90%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+    <h3 style="margin-bottom:16px;color:var(--text)"><i class="fas fa-times-circle" style="color:var(--danger)"></i> Rad etish sababi</h3>
+    <textarea id="rejectReason" class="form-control" rows="4" placeholder="Rad etish sababini kiriting..." style="resize:none"></textarea>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="submitReject()" class="btn btn-danger" style="flex:1">
+        <i class="fas fa-times"></i> Rad etish
+      </button>
+      <button onclick="closeModal()" class="btn btn-outline" style="flex:1">Bekor qilish</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentMeetingId = null;
+
+function verify(meetingId, action) {
+  if (action === 'approve' && !confirm('Uchrashuvni tasdiqlaysizmi?')) return;
+  fetch(`/uchrashuvlar/api/${meetingId}/verify/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'},
+    credentials: 'include',
+    body: JSON.stringify({action, reason: ''})
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else alert('Xato: ' + JSON.stringify(d));
+  });
+}
+
+function rejectPrompt(meetingId) {
+  currentMeetingId = meetingId;
+  document.getElementById('rejectModal').style.display = 'flex';
+  document.getElementById('rejectReason').focus();
+}
+
+function submitReject() {
+  const reason = document.getElementById('rejectReason').value.trim();
+  if (!reason) { alert('Sabab kiriting!'); return; }
+  fetch(`/uchrashuvlar/api/${currentMeetingId}/verify/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'},
+    credentials: 'include',
+    body: JSON.stringify({action: 'reject', reason})
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else alert('Xato: ' + JSON.stringify(d));
+  });
+}
+
+function closeModal() {
+  document.getElementById('rejectModal').style.display = 'none';
+  document.getElementById('rejectReason').value = '';
+  currentMeetingId = null;
+}
+
+function getCookie(name) {
+  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name+'='))?.split('=')[1];
+}
+</script>
+{% endblock %}

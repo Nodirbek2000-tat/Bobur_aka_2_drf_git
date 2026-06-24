@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Tumanlar — YouthGuard{% endblock %}
+{% block page_title %}Tumanlar{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start">
+
+  <!-- Qo'shish formasi -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-plus-circle"></i> Tuman qo'shish</div>
+    </div>
+    <div class="card-body">
+      <form method="post" action="/accounts/districts/add/">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Tuman nomi *</label>
+          <input class="form-control" name="name" placeholder="masalan: Chilonzor tumani" required autofocus>
+        </div>
+        <button class="btn btn-primary" style="width:100%">
+          <i class="fas fa-save"></i> Saqlash
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ro'yxat -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-map-marker-alt"></i> Tumanlar ro'yxati</div>
+      <span class="badge badge-info">{{ districts|length }} ta</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tuman nomi</th>
+            <th>MFYlar</th>
+            <th>Foydalanuvchilar</th>
+            {% if request.user.is_super_admin %}<th>Amal</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in districts %}
+          <tr>
+            <td style="color:var(--text-muted);font-size:12px">{{ forloop.counter }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;color:white;font-size:14px">
+                  <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <span style="font-weight:600">{{ d.name }}</span>
+              </div>
+            </td>
+            <td><span class="badge badge-info">{{ d.organizations.count }} ta MFY</span></td>
+            <td><span class="badge badge-success">{{ d.users.count }} ta</span></td>
+            {% if request.user.is_super_admin %}
+            <td>
+              <form method="post" action="/accounts/districts/{{ d.id }}/delete/"
+                    onsubmit="return confirm('{{ d.name }}ni o\'chirishni tasdiqlaysizmi?')">
+                {% csrf_token %}
+                <button class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <i class="fas fa-map"></i>
+              <h3>Hali tuman qo'shilmagan</h3>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
