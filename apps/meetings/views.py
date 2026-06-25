@@ -15,6 +15,15 @@ from .models import Meeting, Verification, ActionLog, Document, CameraSession
 from .serializers import (MeetingSerializer, MeetingCreateSerializer,
                            VerificationSerializer, VerifyActionSerializer)
 from .utils import generate_pdf, log_action
+from apps.youth.models import Youth
+from apps.accounts.models import CustomUser
+
+
+def _month_start():
+    from django.utils import timezone as dtz
+    from datetime import datetime as dt
+    now = dtz.localtime()
+    return dtz.make_aware(dt(now.year, now.month, 1))
 
 
 class MeetingListCreateAPI(generics.ListCreateAPIView):
@@ -134,6 +143,118 @@ def admin_force_approve_api(request, pk):
     generate_pdf(verification.meeting)
     log_action(request.user, 'Force approve', 'Meeting', pk)
     return Response({'success': True})
+
+
+# ==================== BOT/WEB STATISTIKA API ====================
+
+@api_view(['GET'])
+def bot_my_youth(request):
+    """Yetakchi/rahbarning yoshlari + har biriga uchrashuv statistikasi."""
+    from django.utils import timezone as dtz
+    user = request.user
+    youths = Youth.objects.filter(is_active=True).select_related('organization')
+    if user.role == 'yetakchi':
+        youths = youths.filter(yetakchi=user)
+    elif user.role == 'rahbar':
+        youths = youths.filter(rahbar=user)
+
+    ms = _month_start()
+    now = dtz.now()
+    result = []
+    for y in youths:
+        meetings = y.meetings.all()
+        last = meetings.order_by('-date').first()
+        result.append({
+            'id': y.id,
+            'full_name': y.full_name,
+            'total_meetings': meetings.count(),
+            'this_month': meetings.filter(date__gte=ms).count(),
+            'last_date': last.date.strftime('%d.%m.%Y') if last else None,
+            'days_ago': (now - last.date).days if last else None,
+        })
+    return Response(result)
+
+
+@api_view(['GET'])
+def bot_youth_detail(request, pk):
+    """Bitta yoshning uchrashuvlar tarixi (rol bo'yicha ruxsat)."""
+    from django.utils import timezone as dtz
+    user = request.user
+    y = get_object_or_404(Youth, pk=pk)
+    if user.role == 'yetakchi' and y.yetakchi_id != user.id:
+        return Response({'error': "Ruxsat yo'q"}, status=403)
+    if user.role == 'rahbar' and y.rahbar_id != user.id:
+        return Response({'error': "Ruxsat yo'q"}, status=403)
+
+    ms = _month_start()
+    now = dtz.now()
+    meetings = y.meetings.order_by('-date')
+    return Response({
+        'id': y.id,
+        'full_name': y.full_name,
+        'age': y.age,
+        'category': y.get_category_display(),
+        'organization': y.organization.name if y.organization else None,
+        'total_meetings': meetings.count(),
+        'this_month': meetings.filter(date__gte=ms).count(),
+        'meetings': [{
+            'id': m.id,
+            'date': m.date.strftime('%d.%m.%Y %H:%M'),
+            'status': m.get_status_display(),
+            'days_ago': (now - m.date).days,
+        } for m in meetings[:20]],
+    })
+
+
+@api_view(['GET'])
+def bot_my_yetakchilar(request):
+    """Rahbarning yetakchilari + ularning natijalari (super_admin -> hammasi)."""
+    user = request.user
+    youths = Youth.objects.filter(is_active=True)
+    if user.role == 'rahbar':
+        youths = youths.filter(rahbar=user)
+    elif user.role == 'yetakchi':
+        youths = youths.filter(yetakchi=user)
+
+    yetakchi_ids = list(youths.exclude(yetakchi=None).values_list('yetakchi', flat=True).distinct())
+    ms = _month_start()
+    result = []
+    for yt in CustomUser.objects.filter(id__in=yetakchi_ids):
+        yt_youths = youths.filter(yetakchi=yt)
+        meetings = Meeting.objects.filter(youth__in=yt_youths)
+        result.append({
+            'id': yt.id,
+            'name': yt.get_full_name() or yt.username,
+            'phone': yt.phone,
+            'youth_count': yt_youths.count(),
+            'total_meetings': meetings.count(),
+            'this_month': meetings.filter(date__gte=ms).count(),
+        })
+    return Response(result)
+
+
+@api_view(['GET'])
+def bot_my_stats(request):
+    """Umumiy statistika (rol bo'yicha)."""
+    user = request.user
+    youths = Youth.objects.filter(is_active=True)
+    meetings = Meeting.objects.all()
+    if user.role == 'yetakchi':
+        youths = youths.filter(yetakchi=user)
+        meetings = meetings.filter(youth__yetakchi=user)
+    elif user.role == 'rahbar':
+        youths = youths.filter(rahbar=user)
+        meetings = meetings.filter(youth__rahbar=user)
+
+    ms = _month_start()
+    verified_q = ['verified', 'force_approved']
+    return Response({
+        'youth_count': youths.count(),
+        'total_meetings': meetings.count(),
+        'this_month': meetings.filter(date__gte=ms).count(),
+        'verified': meetings.filter(status__in=verified_q).count(),
+        'pending': meetings.filter(status='pending').count(),
+    })
 
 
 @login_required

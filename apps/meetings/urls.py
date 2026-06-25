@@ -17,6 +17,12 @@ urlpatterns = [
     path('camera/<str:session_id>/upload/', views.camera_upload, name='camera_upload'),
     path('camera/<str:session_id>/status/', views.camera_status, name='camera_status'),
 
+    # Bot/web statistika API
+    path('api/my-youth/', views.bot_my_youth, name='api_my_youth'),
+    path('api/youth/<int:pk>/stats/', views.bot_youth_detail, name='api_youth_stats'),
+    path('api/my-yetakchilar/', views.bot_my_yetakchilar, name='api_my_yetakchilar'),
+    path('api/my-stats/', views.bot_my_stats, name='api_my_stats'),
+
     # API endpoints (bot uchun)
     path('api/camera/create/', views.camera_create_api, name='api_camera_create'),
     path('api/list/', views.MeetingListCreateAPI.as_view(), name='api_list'),
