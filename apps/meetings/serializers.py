@@ -22,14 +22,23 @@ class MeetingSerializer(serializers.ModelSerializer):
 
 
 class MeetingCreateSerializer(serializers.ModelSerializer):
+    date = serializers.DateTimeField(required=False)
+
     class Meta:
         model = Meeting
-        fields = ['youth', 'date', 'latitude', 'longitude', 'location_address',
+        fields = ['id', 'youth', 'date', 'latitude', 'longitude', 'location_address',
                   'photo', 'photo_taken_at', 'notes', 'impossible_reason']
+        read_only_fields = ['id']
 
     def create(self, validated_data):
+        from django.utils import timezone
         request = self.context['request']
         validated_data['rahbar'] = request.user
+        # Uchrashuv vaqti yuborilmasa — hozir
+        if not validated_data.get('date'):
+            validated_data['date'] = timezone.now()
+        if not validated_data.get('photo_taken_at') and validated_data.get('photo'):
+            validated_data['photo_taken_at'] = timezone.now()
         meeting = Meeting.objects.create(**validated_data)
         if validated_data.get('impossible_reason'):
             meeting.status = 'impossible'

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}{{ org.name }} — MFY{% endblock %}
+{% block page_title %}{{ org.name }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/accounts/organizations/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> MFYlar</a>
+{% endblock %}
+
+{% block content %}
+<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+  <i class="fas fa-map-marker-alt"></i> {{ org.district.name }}{% if org.address %} · {{ org.address }}{% endif %}
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-icon green"><i class="fas fa-user-tie"></i></div><div><div class="stat-value">{{ rahbarlar|length }}</div><div class="stat-label">Rahbarlar</div></div></div>
+  <div class="stat-card"><div class="stat-icon orange"><i class="fas fa-user-check"></i></div><div><div class="stat-value">{{ yetakchilar|length }}</div><div class="stat-label">Yetakchilar</div></div></div>
+  <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-child"></i></div><div><div class="stat-value">{{ youth_rows|length }}</div><div class="stat-label">Yoshlar</div></div></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title"><i class="fas fa-users"></i> Mas'ullar</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Ism</th><th>Rol</th><th>Telefon</th><th></th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td style="font-weight:600">{{ u.get_full_name|default:u.username }}</td>
+          <td>{% if u.role == 'rahbar' %}<span class="badge badge-success">Rahbar</span>{% elif u.role == 'yetakchi' %}<span class="badge badge-warning">Yetakchi</span>{% else %}<span class="badge badge-info">{{ u.get_role_display }}</span>{% endif %}</td>
+          <td style="font-size:13px">{{ u.phone|default:"—" }}</td>
+          <td>{% if u.role == 'rahbar' or u.role == 'yetakchi' %}<a href="/accounts/users/{{ u.id }}/" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i> Profil</a>{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">Mas'ul yo'q</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title"><i class="fas fa-child"></i> Yoshlar</div><span class="badge badge-info">{{ youth_rows|length }} ta</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Ism familiya</th><th>Rahbar</th><th>Yetakchi</th><th style="text-align:center">Uchrashuv</th><th></th></tr></thead>
+      <tbody>
+        {% for r in youth_rows %}
+        <tr>
+          <td style="color:var(--text-muted)">{{ forloop.counter }}</td>
+          <td style="font-weight:600">{{ r.obj.full_name }}</td>
+          <td style="font-size:13px">{{ r.obj.rahbar.get_full_name|default:"—" }}</td>
+          <td style="font-size:13px">{{ r.obj.yetakchi.get_full_name|default:"—" }}</td>
+          <td style="text-align:center"><b style="color:var(--primary)">{{ r.total }}</b> <span style="color:var(--text-muted);font-size:12px">(bu oy {{ r.this_month }})</span></td>
+          <td><a href="/yoshlar/{{ r.obj.id }}/" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i></a></td>
+        </tr>
+        {% empty %}<tr><td colspan="6"><div class="empty-state"><i class="fas fa-child"></i><h3>Yosh yo'q</h3></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

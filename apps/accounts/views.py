@@ -97,9 +97,20 @@ def phone_lookup(request):
     last9 = CustomUser.normalize_phone(phone)
 
     user = None
-    # 1) Avval telegram_id bo'yicha (allaqachon bog'langan bo'lsa)
-    user = CustomUser.objects.filter(telegram_id=telegram_id).first()
-    # 2) Bo'lmasa telefon bo'yicha (admin/Excel orqali oldindan kiritilgan bo'lishi mumkin)
+    user = None
+    # 1) Telefon STAFF (yetakchi/rahbar/admin) ga to'g'ri kelsa — eng ustun
+    if last9:
+        staff = (CustomUser.objects
+                 .filter(phone_normalized__endswith=last9)
+                 .exclude(phone_normalized='').exclude(role='user').first())
+        if staff:
+            # telegram_id ni boshqa (oddiy) yozuvlardan ajratib, staff ga bog'laymiz
+            CustomUser.objects.filter(telegram_id=telegram_id).exclude(pk=staff.pk).update(telegram_id=None)
+            user = staff
+    # 2) Bo'lmasa telegram_id bo'yicha (allaqachon bog'langan)
+    if not user:
+        user = CustomUser.objects.filter(telegram_id=telegram_id).first()
+    # 3) Bo'lmasa telefon bo'yicha (oddiy yozuv ham)
     if not user and last9:
         user = CustomUser.objects.filter(phone_normalized__endswith=last9).exclude(phone_normalized='').first()
 
@@ -404,3 +415,115 @@ def organization_delete(request, pk):
     o.delete()
     messages.success(request, "MFY o'chirildi")
     return redirect('accounts:organizations_list')
+
+
+# ───────────── PROFIL VA DETAL SAHIFALAR ─────────────
+
+def _month_start():
+    from django.utils import timezone as dtz
+    from datetime import datetime as dt
+    now = dtz.localtime()
+    return dtz.make_aware(dt(now.year, now.month, 1))
+
+
+def _youth_stats(youths):
+    """Yoshlar ro'yxatiga uchrashuv statistikasini qo'shadi."""
+    from django.utils import timezone as dtz
+    ms = _month_start()
+    now = dtz.now()
+    rows = []
+    for y in youths:
+        meetings = y.meetings.all()
+        last = meetings.order_by('-date').first()
+        rows.append({
+            'obj': y,
+            'total': meetings.count(),
+            'this_month': meetings.filter(date__gte=ms).count(),
+            'last_date': last.date if last else None,
+            'days_ago': (now - last.date).days if last else None,
+        })
+    return rows
+
+
+@login_required
+def user_profile(request, pk):
+    """Rahbar yoki yetakchi profili — biriktirilgan yoshlar/yetakchilar + statistika."""
+    from apps.youth.models import Youth
+    from apps.meetings.models import Meeting
+    from django.utils import timezone as dtz
+
+    target = get_object_or_404(CustomUser, pk=pk)
+    if not request.user.is_admin and request.user != target:
+        messages.error(request, "Ruxsat yo'q")
+        return redirect('/')
+
+    ms = _month_start()
+    context = {'target': target, 'youth_rows': [], 'yetakchi_rows': [], 'stats': {}}
+
+    if target.role == 'yetakchi':
+        youths = Youth.objects.filter(yetakchi=target, is_active=True).select_related('organization')
+        context['youth_rows'] = _youth_stats(youths)
+        meetings = Meeting.objects.filter(youth__yetakchi=target)
+        context['stats'] = {
+            'youth_count': youths.count(),
+            'total_meetings': meetings.count(),
+            'this_month': meetings.filter(date__gte=ms).count(),
+            'verified': meetings.filter(status__in=['verified', 'force_approved']).count(),
+        }
+    elif target.role == 'rahbar':
+        youths = Youth.objects.filter(rahbar=target, is_active=True)
+        yetakchi_ids = youths.exclude(yetakchi=None).values_list('yetakchi', flat=True).distinct()
+        rows = []
+        for yt in CustomUser.objects.filter(id__in=yetakchi_ids):
+            yt_youths = youths.filter(yetakchi=yt)
+            m = Meeting.objects.filter(youth__in=yt_youths)
+            rows.append({
+                'obj': yt,
+                'youth_count': yt_youths.count(),
+                'total': m.count(),
+                'this_month': m.filter(date__gte=ms).count(),
+            })
+        context['yetakchi_rows'] = rows
+        # Rahbar ham yoshlar bilan uchrashadi — biriktirilgan yoshlari
+        context['youth_rows'] = _youth_stats(youths.select_related('organization'))
+        meetings = Meeting.objects.filter(youth__rahbar=target)
+        context['stats'] = {
+            'youth_count': youths.count(),
+            'yetakchi_count': len(rows),
+            'total_meetings': meetings.count(),
+            'this_month': meetings.filter(date__gte=ms).count(),
+        }
+    return render(request, 'accounts/profile.html', context)
+
+
+@login_required
+def district_detail(request, pk):
+    """Tuman ichi — MFYlar, foydalanuvchilar, yoshlar."""
+    from apps.youth.models import Youth
+    if not request.user.is_admin:
+        return redirect('/')
+    d = get_object_or_404(District, pk=pk)
+    orgs = d.organizations.prefetch_related('users', 'youths').all()
+    users = d.users.all()
+    youths = Youth.objects.filter(organization__district=d, is_active=True)
+    return render(request, 'accounts/district_detail.html', {
+        'district': d, 'orgs': orgs, 'users': users, 'youth_count': youths.count(),
+        'rahbarlar': users.filter(role='rahbar'),
+        'yetakchilar': users.filter(role='yetakchi'),
+    })
+
+
+@login_required
+def organization_detail(request, pk):
+    """MFY ichi — foydalanuvchilar va yoshlar."""
+    from apps.youth.models import Youth
+    if not request.user.is_admin:
+        return redirect('/')
+    o = get_object_or_404(Organization, pk=pk)
+    users = o.users.all()
+    youths = Youth.objects.filter(organization=o, is_active=True).select_related('rahbar', 'yetakchi')
+    return render(request, 'accounts/organization_detail.html', {
+        'org': o, 'users': users, 'youth_rows': _youth_stats(youths),
+        'rahbarlar': users.filter(role='rahbar'),
+        'yetakchilar': users.filter(role='yetakchi'),
+    })

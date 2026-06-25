@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}{{ target.get_full_name }} — Profil{% endblock %}
+{% block page_title %}Profil{% endblock %}
+
+{% block topbar_actions %}
+<a href="javascript:history.back()" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Profil sarlavhasi -->
+<div class="card">
+  <div class="card-body" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+    <div style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;color:white;flex-shrink:0;
+      {% if target.role == 'super_admin' %}background:linear-gradient(135deg,#8e44ad,#6c3483)
+      {% elif target.role == 'admin' %}background:linear-gradient(135deg,#2980b9,#1a5276)
+      {% elif target.role == 'rahbar' %}background:linear-gradient(135deg,#16a085,#0e6655)
+      {% else %}background:linear-gradient(135deg,#e67e22,#ca6f1e){% endif %}">
+      {{ target.first_name|first|upper|default:target.username|first|upper }}
+    </div>
+    <div style="flex:1;min-width:200px">
+      <h2 style="margin-bottom:6px">{{ target.get_full_name|default:target.username }}</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        {% if target.role == 'rahbar' %}<span class="badge badge-success"><i class="fas fa-user-tie"></i> Rahbar</span>
+        {% elif target.role == 'yetakchi' %}<span class="badge badge-warning"><i class="fas fa-user-check"></i> Yetakchi</span>
+        {% elif target.role == 'super_admin' %}<span class="badge" style="background:rgba(142,68,173,.12);color:#6c3483">Super Admin</span>
+        {% else %}<span class="badge badge-info">{{ target.get_role_display }}</span>{% endif %}
+        {% if target.phone %}<span style="font-size:13px;color:var(--text-muted)"><i class="fas fa-phone"></i> {{ target.phone }}</span>{% endif %}
+        {% if target.telegram_username %}<span style="font-size:13px;color:var(--info)"><i class="fab fa-telegram"></i> @{{ target.telegram_username }}</span>{% endif %}
+      </div>
+      {% if target.organization %}<div style="font-size:13px;color:var(--text-muted);margin-top:6px"><i class="fas fa-building"></i> {{ target.organization.name }}{% if target.district %} · {{ target.district.name }}{% endif %}</div>{% endif %}
+    </div>
+    {% if request.user.is_admin %}
+    <a href="/accounts/users/{{ target.id }}/edit/" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i> Tahrirlash</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Statistika kartochkalari -->
+<div class="stats-grid">
+  {% if target.role == 'yetakchi' %}
+  <div class="stat-card"><div class="stat-icon teal"><i class="fas fa-child"></i></div><div><div class="stat-value">{{ stats.youth_count }}</div><div class="stat-label">Biriktirilgan yoshlar</div></div></div>
+  <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-handshake"></i></div><div><div class="stat-value">{{ stats.total_meetings }}</div><div class="stat-label">Jami uchrashuvlar</div></div></div>
+  <div class="stat-card"><div class="stat-icon orange"><i class="fas fa-calendar-day"></i></div><div><div class="stat-value">{{ stats.this_month }}</div><div class="stat-label">Bu oyda</div></div></div>
+  <div class="stat-card"><div class="stat-icon green"><i class="fas fa-check-circle"></i></div><div><div class="stat-value">{{ stats.verified }}</div><div class="stat-label">Tasdiqlangan</div></div></div>
+  {% elif target.role == 'rahbar' %}
+  <div class="stat-card"><div class="stat-icon orange"><i class="fas fa-user-check"></i></div><div><div class="stat-value">{{ stats.yetakchi_count }}</div><div class="stat-label">Yetakchilar</div></div></div>
+  <div class="stat-card"><div class="stat-icon teal"><i class="fas fa-child"></i></div><div><div class="stat-value">{{ stats.youth_count }}</div><div class="stat-label">Yoshlar</div></div></div>
+  <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-handshake"></i></div><div><div class="stat-value">{{ stats.total_meetings }}</div><div class="stat-label">Jami uchrashuvlar</div></div></div>
+  <div class="stat-card"><div class="stat-icon green"><i class="fas fa-calendar-day"></i></div><div><div class="stat-value">{{ stats.this_month }}</div><div class="stat-label">Bu oyda</div></div></div>
+  {% endif %}
+</div>
+
+<!-- Biriktirilgan yoshlar (rahbar va yetakchi uchun) -->
+{% if youth_rows %}
+<div class="card">
+  <div class="card-header"><div class="card-title"><i class="fas fa-child"></i> Biriktirilgan yoshlar</div><span class="badge badge-info">{{ youth_rows|length }} ta</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Ism familiya</th><th>Yosh</th><th style="text-align:center">Jami</th><th style="text-align:center">Bu oy</th><th>Oxirgi uchrashuv</th><th></th></tr></thead>
+      <tbody>
+        {% for r in youth_rows %}
+        <tr>
+          <td style="color:var(--text-muted)">{{ forloop.counter }}</td>
+          <td style="font-weight:600">{{ r.obj.full_name }}</td>
+          <td>{{ r.obj.age }} yosh</td>
+          <td style="text-align:center"><b style="color:var(--primary)">{{ r.total }}</b></td>
+          <td style="text-align:center">{{ r.this_month }}</td>
+          <td style="font-size:13px">{% if r.last_date %}{{ r.last_date|date:"d.m.Y" }} <span style="color:var(--text-muted)">({{ r.days_ago }} kun)</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}</td>
+          <td><a href="/yoshlar/{{ r.obj.id }}/" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="empty-state"><i class="fas fa-child"></i><h3>Biriktirilgan yosh yo'q</h3></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Rahbar: yetakchilari -->
+{% if target.role == 'rahbar' %}
+<div class="card">
+  <div class="card-header"><div class="card-title"><i class="fas fa-user-check"></i> Yoshlar yetakchilari</div><span class="badge badge-info">{{ yetakchi_rows|length }} ta</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Yetakchi</th><th style="text-align:center">Yoshlar</th><th style="text-align:center">Jami uchrashuv</th><th style="text-align:center">Bu oy</th><th></th></tr></thead>
+      <tbody>
+        {% for r in yetakchi_rows %}
+        <tr>
+          <td style="color:var(--text-muted)">{{ forloop.counter }}</td>
+          <td style="font-weight:600">{{ r.obj.get_full_name|default:r.obj.username }}</td>
+          <td style="text-align:center">{{ r.youth_count }}</td>
+          <td style="text-align:center"><b style="color:var(--primary)">{{ r.total }}</b></td>
+          <td style="text-align:center">{{ r.this_month }}</td>
+          <td><a href="/accounts/users/{{ r.obj.id }}/" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i> Profil</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6"><div class="empty-state"><i class="fas fa-user-check"></i><h3>Yetakchi yo'q</h3></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
