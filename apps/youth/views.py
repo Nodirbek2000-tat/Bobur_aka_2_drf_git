@@ -43,19 +43,39 @@ class YouthDetailAPI(generics.RetrieveAPIView):
 @login_required
 def youth_list(request):
     user = request.user
-    qs = Youth.objects.filter(is_active=True).select_related('organization', 'rahbar', 'yetakchi')
+    qs = Youth.objects.filter(is_active=True).select_related('organization', 'organization__district', 'rahbar', 'yetakchi')
     if user.role == 'rahbar':
         qs = qs.filter(rahbar=user)
     elif user.role == 'yetakchi':
         qs = qs.filter(yetakchi=user)
 
     search = request.GET.get('q', '')
+    org_filter = request.GET.get('org', '')
+    district_filter = request.GET.get('district', '')
+
     if search:
         qs = qs.filter(full_name__icontains=search)
+    if org_filter:
+        qs = qs.filter(organization_id=org_filter)
+    if district_filter:
+        qs = qs.filter(organization__district_id=district_filter)
 
+    total = qs.count()
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get('page', 1))
-    return render(request, 'youth/list.html', {'page': page, 'search': search, 'total': qs.count()})
+
+    orgs = Organization.objects.all() if user.is_admin else Organization.objects.none()
+    districts = District.objects.all() if user.is_admin else District.objects.none()
+
+    return render(request, 'youth/list.html', {
+        'page': page,
+        'search': search,
+        'total': total,
+        'org_filter': org_filter,
+        'district_filter': district_filter,
+        'orgs': orgs,
+        'districts': districts,
+    })
 
 
 @login_required

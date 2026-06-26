@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.youth',
     'apps.meetings',
+    'apps.surveys',
     'apps.dashboard',
 ]
 

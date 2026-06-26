@@ -56,4 +56,4 @@ class Youth(models.Model):
 
     @property
     def approved_meetings(self):
-        return self.meetings.filter(status='approved').count()
+        return self.meetings.filter(status__in=['verified', 'force_approved']).count()

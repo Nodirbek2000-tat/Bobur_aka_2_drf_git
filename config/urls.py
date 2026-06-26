@@ -9,5 +9,6 @@ urlpatterns = [
     path('accounts/', include('apps.accounts.urls')),
     path('yoshlar/', include('apps.youth.urls')),
     path('uchrashuvlar/', include('apps.meetings.urls')),
+    path('sorovnoma/', include('apps.surveys.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) \
   + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

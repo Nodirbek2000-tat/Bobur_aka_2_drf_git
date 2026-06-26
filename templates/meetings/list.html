@@ -8,6 +8,33 @@
 {% endblock %}
 
 {% block content %}
+<!-- Sana va tashkilot filtri -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body" style="padding:14px 20px">
+    <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;color:var(--text-muted);white-space:nowrap"><i class="fas fa-calendar"></i> Dan:</span>
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="width:148px">
+        <span style="color:var(--text-muted)">–</span>
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control" style="width:148px">
+      </div>
+      {% if orgs %}
+      <select name="org" class="form-control" style="width:220px">
+        <option value="">— Barcha tashkilotlar —</option>
+        {% for o in orgs %}
+        <option value="{{ o.id }}" {% if org_filter == o.id|stringformat:"s" %}selected{% endif %}>{{ o.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Filtr</button>
+      {% if date_from or date_to or org_filter %}
+      <a href="?{% if status_filter %}status={{ status_filter }}{% endif %}" class="btn btn-outline btn-sm"><i class="fas fa-times"></i> Tozalash</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
 <!-- Status filter tabs -->
 <div class="status-tabs">
   <a href="?" class="status-tab {% if not status_filter %}active{% endif %}">Barchasi</a>
@@ -102,25 +129,23 @@
 
 <!-- Pagination -->
 {% if page.has_other_pages %}
+{% with filters=""|add:status_filter|add:"" %}
 <div class="pagination">
   {% if page.has_previous %}
-    <a href="?page={{ page.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="page-btn">
-      <i class="fas fa-chevron-left"></i>
-    </a>
+    <a href="?page={{ page.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if org_filter %}&org={{ org_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
   {% endif %}
   {% for n in page.paginator.page_range %}
     {% if n == page.number %}
       <span class="page-btn active">{{ n }}</span>
     {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}
-      <a href="?page={{ n }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="page-btn">{{ n }}</a>
+      <a href="?page={{ n }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if org_filter %}&org={{ org_filter }}{% endif %}" class="page-btn">{{ n }}</a>
     {% endif %}
   {% endfor %}
   {% if page.has_next %}
-    <a href="?page={{ page.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="page-btn">
-      <i class="fas fa-chevron-right"></i>
-    </a>
+    <a href="?page={{ page.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if org_filter %}&org={{ org_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
   {% endif %}
 </div>
+{% endwith %}
 {% endif %}
 
 <!-- Photo modal -->

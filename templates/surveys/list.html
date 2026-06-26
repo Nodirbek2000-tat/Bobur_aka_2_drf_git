@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}So'rovnomalar — YouthGuard{% endblock %}
+{% block page_title %}So'rovnomalar{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:360px 1fr;gap:24px;align-items:start">
+
+  <!-- Yangi so'rovnoma qo'shish -->
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="fas fa-plus-circle"></i> Yangi so'rovnoma</div></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">So'rovnoma nomi *</label>
+          <input class="form-control" name="name" placeholder="masalan: Uchrashuv so'rovnomasi" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tavsif</label>
+          <textarea class="form-control" name="description" rows="3" placeholder="Ixtiyoriy qisqacha tavsif..."></textarea>
+        </div>
+        <button class="btn btn-primary" style="width:100%"><i class="fas fa-save"></i> Yaratish</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ro'yxat -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-list-alt"></i> So'rovnomalar</div>
+      <span class="badge badge-info">{{ surveys|length }} ta</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nomi</th>
+            <th style="text-align:center">Savollar</th>
+            <th style="text-align:center">Holat</th>
+            <th>Amallar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in surveys %}
+          <tr>
+            <td style="color:var(--text-muted);font-size:12px">{{ forloop.counter }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:15px;
+                  {% if s.is_active %}background:linear-gradient(135deg,var(--success),#0e9f6e){% else %}background:linear-gradient(135deg,var(--primary),var(--primary-dark)){% endif %}">
+                  <i class="fas {% if s.is_active %}fa-check{% else %}fa-list-alt{% endif %}"></i>
+                </div>
+                <div>
+                  <div style="font-weight:600">{{ s.name }}</div>
+                  {% if s.description %}<div style="font-size:11px;color:var(--text-muted)">{{ s.description|truncatechars:60 }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td style="text-align:center">
+              <span class="badge badge-info">{{ s.question_count }} ta savol</span>
+            </td>
+            <td style="text-align:center">
+              {% if s.is_active %}
+              <span class="badge badge-success"><i class="fas fa-check-circle"></i> Faol</span>
+              {% else %}
+              <span class="badge badge-secondary"><i class="fas fa-pause-circle"></i> Nofaol</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <a href="/sorovnoma/{{ s.id }}/" class="btn btn-primary btn-sm"><i class="fas fa-edit"></i> Tahrirlash</a>
+                {% if not s.is_active %}
+                <form method="post" action="/sorovnoma/{{ s.id }}/delete/" onsubmit="return confirm('{{ s.name }}ni o\'chirishni tasdiqlaysizmi?')">
+                  {% csrf_token %}
+                  <button class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <i class="fas fa-list-alt"></i>
+              <h3>Hali so'rovnoma yaratilmagan</h3>
+              <p>Yangi so'rovnoma yarating va savollar qo'shing</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bot integratsiyasi haqida ma'lumot -->
+<div class="card" style="margin-top:24px;border-left:4px solid var(--info)">
+  <div class="card-body" style="display:flex;align-items:center;gap:16px">
+    <div style="width:44px;height:44px;border-radius:50%;background:rgba(41,128,185,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="fab fa-telegram" style="color:var(--info);font-size:20px"></i>
+    </div>
+    <div>
+      <div style="font-weight:600;margin-bottom:4px">Bot integratsiyasi</div>
+      <div style="font-size:13px;color:var(--text-muted)">
+        <b>Faol</b> so'rovnoma Telegram botida "Uchrashuvni boshlash" bosilganda ishlatiladi.
+        Bir vaqtda faqat 1 ta so'rovnoma faol bo'lishi mumkin.
+        Agar faol so'rovnoma bo'lmasa, bot standart oqimda ishlaydi (lokatsiya → rasm → izoh).
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

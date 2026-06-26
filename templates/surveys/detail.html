@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}{{ survey.name }} — So'rovnoma{% endblock %}
+{% block page_title %}So'rovnoma tahrirlash{% endblock %}
+
+{% block topbar_actions %}
+<a href="/sorovnoma/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
+{% if survey.is_active %}
+<span class="badge badge-success" style="font-size:13px;padding:6px 12px"><i class="fas fa-check-circle"></i> Faol — Botda ishlatilmoqda</span>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start">
+
+  <!-- Chap panel: so'rovnoma ma'lumotlari + holat + yangi savol -->
+  <div>
+    <!-- Ma'lumotlar -->
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-info-circle"></i> So'rovnoma</div></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_survey">
+          <div class="form-group">
+            <label class="form-label">Nomi *</label>
+            <input class="form-control" name="name" value="{{ survey.name }}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tavsif</label>
+            <textarea class="form-control" name="description" rows="2">{{ survey.description }}</textarea>
+          </div>
+          <button class="btn btn-outline btn-sm" style="width:100%"><i class="fas fa-save"></i> Saqlash</button>
+        </form>
+
+        <hr style="margin:16px 0;border-color:var(--border)">
+
+        <!-- Faol/Nofaol toggle -->
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="toggle_active">
+          {% if survey.is_active %}
+          <button class="btn btn-warning" style="width:100%"><i class="fas fa-pause-circle"></i> Nofaol qilish</button>
+          {% else %}
+          <button class="btn btn-success" style="width:100%"><i class="fas fa-play-circle"></i> Faollashtirish</button>
+          {% endif %}
+        </form>
+
+        <div style="font-size:12px;color:var(--text-muted);margin-top:10px">
+          {% if survey.is_active %}
+          <i class="fas fa-info-circle"></i> Bu so'rovnoma botda ishlatilmoqda. Boshqa so'rovnomani faollashtirish uchun oldin nofaol qiling.
+          {% else %}
+          <i class="fas fa-info-circle"></i> Faollashtirish boshqa so'rovnomalarni avtomatik o'chiradi.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Yangi savol qo'shish -->
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-plus"></i> Savol qo'shish</div></div>
+      <div class="card-body">
+        <form method="post" id="addQuestionForm">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_question">
+          <div class="form-group">
+            <label class="form-label">Savol turi *</label>
+            <select class="form-control" name="type" id="qTypeSelect" onchange="toggleChoices(this.value)">
+              {% for val, label in question_types %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Savol matni *</label>
+            <input class="form-control" name="text" placeholder="masalan: Lokatsiyangizni yuboring" required>
+          </div>
+          <div class="form-group" id="choicesGroup" style="display:none">
+            <label class="form-label">Variantlar (har biri yangi qatorda)</label>
+            <textarea class="form-control" name="choices_text" rows="4" placeholder="Ha&#10;Yo'q&#10;Bilmayman"></textarea>
+          </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px">
+            <input type="checkbox" name="required" id="reqCheck" checked style="width:18px;height:18px">
+            <label for="reqCheck" style="margin:0;cursor:pointer">Majburiy savol</label>
+          </div>
+          <button class="btn btn-primary" style="width:100%"><i class="fas fa-plus"></i> Qo'shish</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- O'ng panel: savollar ro'yxati -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-question-circle"></i> Savollar ro'yxati</div>
+      <span class="badge badge-info">{{ questions|length }} ta</span>
+    </div>
+
+    {% if not questions %}
+    <div class="card-body">
+      <div class="empty-state">
+        <i class="fas fa-question-circle"></i>
+        <h3>Hali savol qo'shilmagan</h3>
+        <p>Chap paneldan savol qo'shing</p>
+      </div>
+    </div>
+    {% else %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50px">Tartib</th>
+            <th>Savol</th>
+            <th style="width:100px;text-align:center">Tur</th>
+            <th style="width:80px;text-align:center">Majburiy</th>
+            <th style="width:120px">Amallar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in questions %}
+          <tr>
+            <td>
+              <div style="display:flex;flex-direction:column;gap:2px;align-items:center">
+                <form method="post" style="margin:0">{% csrf_token %}<input type="hidden" name="action" value="move_up"><input type="hidden" name="question_id" value="{{ q.id }}"><button class="btn btn-outline btn-sm" style="padding:2px 8px;line-height:1" {% if forloop.first %}disabled{% endif %}><i class="fas fa-chevron-up" style="font-size:10px"></i></button></form>
+                <b style="color:var(--primary)">{{ q.order }}</b>
+                <form method="post" style="margin:0">{% csrf_token %}<input type="hidden" name="action" value="move_down"><input type="hidden" name="question_id" value="{{ q.id }}"><button class="btn btn-outline btn-sm" style="padding:2px 8px;line-height:1" {% if forloop.last %}disabled{% endif %}><i class="fas fa-chevron-down" style="font-size:10px"></i></button></form>
+              </div>
+            </td>
+            <td>
+              <div style="font-weight:600">{{ q.text }}</div>
+              {% if q.choices_list %}
+              <div style="font-size:12px;color:var(--text-muted);margin-top:4px">
+                Variantlar: {% for ch in q.choices_list %}<span class="badge badge-secondary" style="margin-right:3px">{{ ch }}</span>{% endfor %}
+              </div>
+              {% endif %}
+            </td>
+            <td style="text-align:center">
+              <span class="badge
+                {% if q.type == 'location' %}badge-success
+                {% elif q.type == 'photo' %}badge-info
+                {% elif q.type == 'choice' %}badge-warning
+                {% elif q.type == 'number' %}badge-secondary
+                {% else %}badge-secondary{% endif %}">
+                <i class="fas
+                  {% if q.type == 'location' %}fa-map-marker-alt
+                  {% elif q.type == 'photo' %}fa-camera
+                  {% elif q.type == 'choice' %}fa-list
+                  {% elif q.type == 'number' %}fa-hashtag
+                  {% else %}fa-font{% endif %}"></i>
+                {{ q.get_type_display }}
+              </span>
+            </td>
+            <td style="text-align:center">
+              {% if q.required %}
+              <span style="color:var(--danger)"><i class="fas fa-asterisk" style="font-size:12px"></i></span>
+              {% else %}
+              <span style="color:var(--text-muted)">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" onsubmit="return confirm('Savolni o\'chirishni tasdiqlaysizmi?')">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_question">
+                <input type="hidden" name="question_id" value="{{ q.id }}">
+                <button class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> O'chirish</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleChoices(type) {
+  document.getElementById('choicesGroup').style.display = type === 'choice' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

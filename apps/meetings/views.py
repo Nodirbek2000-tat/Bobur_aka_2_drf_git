@@ -259,16 +259,35 @@ def bot_my_stats(request):
 
 @login_required
 def meetings_list(request):
+    from apps.accounts.models import Organization
     user = request.user
-    qs = Meeting.objects.select_related('rahbar', 'youth', 'youth__organization').all()
+    qs = Meeting.objects.select_related('rahbar', 'rahbar__organization', 'youth', 'youth__organization').all()
     if user.role == 'rahbar':
         qs = qs.filter(rahbar=user)
     elif user.role == 'yetakchi':
         qs = qs.filter(youth__yetakchi=user)
 
     status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    org_filter = request.GET.get('org', '')
+
     if status_filter:
         qs = qs.filter(status=status_filter)
+    if date_from:
+        try:
+            qs = qs.filter(date__date__gte=date_from)
+        except Exception:
+            pass
+    if date_to:
+        try:
+            qs = qs.filter(date__date__lte=date_to)
+        except Exception:
+            pass
+    if org_filter:
+        qs = qs.filter(rahbar__organization_id=org_filter)
+
+    orgs = Organization.objects.all() if user.is_admin else Organization.objects.none()
 
     paginator = Paginator(qs, 15)
     page = paginator.get_page(request.GET.get('page', 1))
@@ -276,6 +295,10 @@ def meetings_list(request):
         'page': page,
         'status_filter': status_filter,
         'status_choices': Meeting.STATUS_CHOICES,
+        'date_from': date_from,
+        'date_to': date_to,
+        'org_filter': org_filter,
+        'orgs': orgs,
     })
 
 
