@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}So'rovnoma yo'q{% endblock %}
+{% block content %}
+<div class="empty-state">
+  <i class="fas fa-clipboard-list" style="font-size:48px;color:var(--text-muted);margin-bottom:16px"></i>
+  <h3>Faol so'rovnoma yo'q</h3>
+  <p>Administrator tizimida so'rovnoma yaratib, faollashtirishi kerak.</p>
+  <a href="/yoshlar/{{ youth.id }}/" class="btn btn-outline" style="margin-top:12px">← Orqaga</a>
+</div>
+{% endblock %}

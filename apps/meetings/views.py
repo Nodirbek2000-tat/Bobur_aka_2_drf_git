@@ -419,6 +419,59 @@ def download_pdf(request, pk):
     return FileResponse(doc.file.open(), as_attachment=True, filename=f"uchrashuv_{pk}.pdf")
 
 
+@login_required
+def meeting_result_view(request, pk):
+    """Uchrashuv natijasi — so'rovnoma javoblari + Word yuklab olish."""
+    import json
+    meeting = get_object_or_404(Meeting, pk=pk)
+
+    if request.user.role == 'rahbar' and meeting.rahbar_id != request.user.id:
+        return HttpResponse("Ruxsat yo'q", status=403)
+
+    answers = []
+    notes_text = meeting.notes or ''
+    if '[ANSWERS_JSON]' in notes_text:
+        parts = notes_text.split('[ANSWERS_JSON]')
+        try:
+            answers = json.loads(parts[1].strip())
+        except Exception:
+            answers = []
+        notes_text = parts[0].strip()
+
+    return render(request, 'meetings/meeting_result.html', {
+        'meeting': meeting,
+        'answers': answers,
+        'notes_text': notes_text,
+    })
+
+
+@login_required
+def download_word_doc(request, pk):
+    """Word hujjat yuklab olish."""
+    import json
+    from .utils import generate_word_doc
+    meeting = get_object_or_404(Meeting, pk=pk)
+
+    if request.user.role == 'rahbar' and meeting.rahbar_id != request.user.id:
+        return HttpResponse("Ruxsat yo'q", status=403)
+
+    answers = []
+    if '[ANSWERS_JSON]' in (meeting.notes or ''):
+        try:
+            answers = json.loads(meeting.notes.split('[ANSWERS_JSON]')[1].strip())
+        except Exception:
+            pass
+
+    word_bytes = generate_word_doc(meeting, answers)
+    resp = HttpResponse(
+        word_bytes,
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+    safe_name = f"uchrashuv_{meeting.id}_{meeting.youth.full_name[:20].replace(' ', '_')}.docx"
+    resp['Content-Disposition'] = f'attachment; filename="{safe_name}"'
+    return resp
+
+
 # ─────────────── KAMERA ───────────────
 
 def camera_page(request, session_id):

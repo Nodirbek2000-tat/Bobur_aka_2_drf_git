@@ -67,6 +67,9 @@ def youth_list(request):
     orgs = Organization.objects.all() if user.is_admin else Organization.objects.none()
     districts = District.objects.all() if user.is_admin else District.objects.none()
 
+    from apps.surveys.models import Survey
+    has_active_survey = Survey.objects.filter(is_active=True).exists()
+
     return render(request, 'youth/list.html', {
         'page': page,
         'search': search,
@@ -75,14 +78,112 @@ def youth_list(request):
         'district_filter': district_filter,
         'orgs': orgs,
         'districts': districts,
+        'has_active_survey': has_active_survey,
     })
 
 
 @login_required
 def youth_detail(request, pk):
+    from apps.surveys.models import Survey
     youth = get_object_or_404(Youth, pk=pk)
     meetings = youth.meetings.order_by('-created_at')[:10]
-    return render(request, 'youth/detail.html', {'youth': youth, 'meetings': meetings})
+    has_active_survey = Survey.objects.filter(is_active=True).exists()
+    return render(request, 'youth/detail.html', {
+        'youth': youth,
+        'meetings': meetings,
+        'has_active_survey': has_active_survey,
+    })
+
+
+@login_required
+def youth_survey_view(request, pk):
+    """Web so'rovnoma formasi — rahbar uchun."""
+    from apps.surveys.models import Survey
+    from apps.meetings.models import Meeting, Verification
+    from django.utils import timezone
+    import json
+
+    youth = get_object_or_404(Youth, pk=pk)
+
+    if request.user.role == 'rahbar' and youth.rahbar_id != request.user.id:
+        return HttpResponse("Ruxsat yo'q", status=403)
+    if request.user.role == 'yetakchi' and youth.yetakchi_id != request.user.id:
+        return HttpResponse("Ruxsat yo'q", status=403)
+
+    survey = Survey.objects.filter(is_active=True).prefetch_related('questions').first()
+    if not survey:
+        return render(request, 'meetings/survey_no_active.html', {'youth': youth})
+
+    questions = list(survey.questions.order_by('order'))
+
+    if request.method == 'POST':
+        answers = []
+        lat, lng = None, None
+        photo_file = None
+        notes_parts = []
+
+        for q in questions:
+            qtype = q.type
+            if qtype == 'location':
+                lat_v = request.POST.get(f'q_{q.id}_lat', '').strip()
+                lng_v = request.POST.get(f'q_{q.id}_lng', '').strip()
+                if lat_v and lng_v:
+                    try:
+                        lat, lng = float(lat_v), float(lng_v)
+                        val = f"{lat:.6f}, {lng:.6f}"
+                        notes_parts.append(f"📍 {q.text}: {val}")
+                        answers.append({'q': q.text, 'type': 'location', 'value': val})
+                    except ValueError:
+                        pass
+                elif q.required:
+                    pass  # Majburiy emas bo'lsa o'tkazib yuborish
+            elif qtype == 'photo':
+                pf = request.FILES.get(f'q_{q.id}_photo')
+                if pf:
+                    photo_file = pf
+                    notes_parts.append(f"📸 {q.text}: [Rasm]")
+                    answers.append({'q': q.text, 'type': 'photo', 'value': 'rasm_yuklandi'})
+            else:
+                val = request.POST.get(f'q_{q.id}', '').strip()
+                if val:
+                    icon = '🔢' if qtype == 'number' else '✅' if qtype == 'choice' else '📝'
+                    notes_parts.append(f"{icon} {q.text}: {val}")
+                    answers.append({'q': q.text, 'type': qtype, 'value': val})
+
+        answers_json = json.dumps(answers, ensure_ascii=False)
+        notes_text = '\n'.join(notes_parts) + '\n[ANSWERS_JSON]\n' + answers_json
+
+        # Rahbar aniqlash
+        rahbar = request.user if request.user.role == 'rahbar' else youth.rahbar
+        if not rahbar:
+            return render(request, 'meetings/survey_form.html', {
+                'youth': youth, 'survey': survey, 'questions': questions,
+                'error': "Bu yoshga rahbar biriktirilmagan!"
+            })
+
+        meeting = Meeting.objects.create(
+            rahbar=rahbar,
+            youth=youth,
+            date=timezone.now(),
+            latitude=lat,
+            longitude=lng,
+            notes=notes_text,
+            status='pending',
+        )
+
+        if photo_file:
+            meeting.photo.save(f'meeting_{meeting.id}.jpg', photo_file, save=True)
+
+        if youth.yetakchi:
+            Verification.objects.create(meeting=meeting, verifier=youth.yetakchi)
+
+        return redirect(f'/uchrashuvlar/{meeting.id}/natija/')
+
+    return render(request, 'meetings/survey_form.html', {
+        'youth': youth,
+        'survey': survey,
+        'questions': questions,
+    })
 
 
 # ===== Davlat Excel formati (12 ustun) =====

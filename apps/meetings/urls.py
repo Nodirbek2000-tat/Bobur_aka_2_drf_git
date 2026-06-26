@@ -9,6 +9,8 @@ urlpatterns = [
     path('statistika/', views.meetings_stats, name='stats'),
     path('<int:pk>/', views.meeting_detail, name='detail'),
     path('<int:pk>/pdf/', views.download_pdf, name='pdf'),
+    path('<int:pk>/natija/', views.meeting_result_view, name='result'),
+    path('<int:pk>/word/', views.download_word_doc, name='word'),
     path('verifications/', views.verifications_list, name='verifications'),
     path('logs/', views.action_logs, name='logs'),
 

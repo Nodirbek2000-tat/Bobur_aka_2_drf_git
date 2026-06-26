@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Uchrashuv — {{ youth.full_name }}{% endblock %}
+{% block page_title %}🤝 Uchrashuv{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:600px;margin:0 auto">
+  <div class="card-header" style="background:var(--primary);color:#fff;border-radius:12px 12px 0 0;padding:16px 20px">
+    <div style="font-size:15px;font-weight:700">🤝 {{ youth.full_name }}</div>
+    <div style="font-size:12px;opacity:.85;margin-top:4px">{{ survey.name }}</div>
+  </div>
+  <div class="card-body" style="padding:20px">
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom:16px;padding:12px;border-radius:8px;background:#fee;border:1px solid #fcc;color:#c00">
+      ❌ {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" id="surveyForm">
+      {% csrf_token %}
+
+      {% for q in questions %}
+      <div class="question-block" style="margin-bottom:24px;padding:16px;background:var(--bg-secondary, #f8f9fa);border-radius:10px;border-left:4px solid var(--primary)">
+        <label style="display:block;font-weight:600;font-size:14px;margin-bottom:10px;color:var(--text)">
+          {{ q.order }}. {{ q.text }}
+          {% if q.required %}<span style="color:#e74c3c;margin-left:4px">*</span>{% endif %}
+        </label>
+
+        {% if q.type == 'text' %}
+          <input type="text" name="q_{{ q.id }}" class="form-control"
+                 placeholder="Javobingizni yozing..."
+                 {% if q.required %}required{% endif %}
+                 style="width:100%;padding:10px 14px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;background:var(--bg);color:var(--text)">
+
+        {% elif q.type == 'number' %}
+          <input type="number" name="q_{{ q.id }}" class="form-control"
+                 placeholder="Raqam kiriting..."
+                 {% if q.required %}required{% endif %}
+                 style="width:100%;padding:10px 14px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;background:var(--bg);color:var(--text)">
+
+        {% elif q.type == 'choice' %}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            {% for ch in q.choices_list %}
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px" class="choice-label">
+              <input type="radio" name="q_{{ q.id }}" value="{{ ch }}"
+                     {% if q.required %}required{% endif %}
+                     style="width:16px;height:16px;accent-color:var(--primary)">
+              {{ ch }}
+            </label>
+            {% empty %}
+            <input type="text" name="q_{{ q.id }}" class="form-control"
+                   placeholder="Javob kiriting..."
+                   {% if q.required %}required{% endif %}
+                   style="width:100%;padding:10px 14px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;background:var(--bg);color:var(--text)">
+            {% endfor %}
+          </div>
+
+        {% elif q.type == 'photo' %}
+          <div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center">
+            <input type="file" name="q_{{ q.id }}_photo" id="photo_{{ q.id }}"
+                   accept="image/*" capture="environment"
+                   {% if q.required %}required{% endif %}
+                   onchange="previewPhoto(this, 'preview_{{ q.id }}')"
+                   style="display:none">
+            <label for="photo_{{ q.id }}" style="cursor:pointer;display:block">
+              <div id="preview_{{ q.id }}" style="margin-bottom:10px"></div>
+              <span style="background:var(--primary);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600">
+                📸 Rasm olish / tanlash
+              </span>
+            </label>
+          </div>
+
+        {% elif q.type == 'location' %}
+          <input type="hidden" name="q_{{ q.id }}_lat" id="lat_{{ q.id }}">
+          <input type="hidden" name="q_{{ q.id }}_lng" id="lng_{{ q.id }}">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button type="button" onclick="getLocation('{{ q.id }}')"
+                    style="background:var(--primary);color:#fff;border:none;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%">
+              📍 Joriy lokatsiyani aniqlash
+            </button>
+            <div id="loc_status_{{ q.id }}" style="font-size:13px;color:var(--text-muted);padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);min-height:36px">
+              Aniqlanmagan
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <button type="submit" id="submitBtn"
+              style="width:100%;background:#27ae60;color:#fff;border:none;padding:14px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px">
+        ✅ Uchrashuvni saqlash
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+function getLocation(qid) {
+  var btn = document.querySelector('[onclick="getLocation(\'' + qid + '\')"]');
+  var status = document.getElementById('loc_status_' + qid);
+  btn.textContent = '⏳ Aniqlanmoqda...';
+  btn.disabled = true;
+
+  if (!navigator.geolocation) {
+    status.textContent = '❌ Brauzer lokatsiyani qo\'llab-quvvatlamaydi';
+    btn.disabled = false;
+    btn.textContent = '📍 Joriy lokatsiyani aniqlash';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    var lat = pos.coords.latitude;
+    var lng = pos.coords.longitude;
+    document.getElementById('lat_' + qid).value = lat;
+    document.getElementById('lng_' + qid).value = lng;
+    status.innerHTML = '<span style="color:#27ae60;font-weight:600">✅ Aniqlandi: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</span>';
+    btn.textContent = '📍 Qayta aniqlash';
+    btn.disabled = false;
+  }, function(err) {
+    status.textContent = '❌ Xato: ' + err.message;
+    btn.textContent = '📍 Qayta urinish';
+    btn.disabled = false;
+  }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0});
+}
+
+function previewPhoto(input, previewId) {
+  var preview = document.getElementById(previewId);
+  if (input.files && input.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      preview.innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:200px;border-radius:8px;margin-bottom:8px">';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+document.getElementById('surveyForm').addEventListener('submit', function() {
+  var btn = document.getElementById('submitBtn');
+  btn.textContent = '⏳ Saqlanmoqda...';
+  btn.disabled = true;
+});
+
+// Choice label faol holat
+document.querySelectorAll('.choice-label input[type=radio]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    document.querySelectorAll('.choice-label[style]').forEach(function(l) {
+      l.style.borderColor = 'var(--border)';
+      l.style.background = 'var(--bg)';
+    });
+    if (this.checked) {
+      this.parentElement.style.borderColor = 'var(--primary)';
+      this.parentElement.style.background = 'rgba(var(--primary-rgb, 52,152,219), 0.08)';
+    }
+  });
+});
+</script>
+{% endblock %}

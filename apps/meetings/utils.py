@@ -114,3 +114,86 @@ def generate_pdf(meeting):
     document.qr_code = qr_code_str
     document.save()
     return document
+
+
+def generate_word_doc(meeting, answers=None):
+    """Word hujjat — uchrashuv natijalari (on-the-fly)."""
+    from docx import Document as DocxDocument
+    from docx.shared import Inches, Pt, Cm, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    import io
+
+    doc = DocxDocument()
+
+    section = doc.sections[0]
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(2.5)
+    section.right_margin = Cm(2.5)
+
+    # Sarlavha
+    title = doc.add_heading('YOUTHGUARD', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sub = doc.add_paragraph('Yoshlar bilan uchrashuv dalolatnomasi')
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sub.runs[0].font.size = Pt(12)
+    sub.runs[0].font.color.rgb = RGBColor(0x6C, 0x75, 0x7D)
+    doc.add_paragraph()
+
+    # Asosiy ma'lumotlar jadvali
+    tbl = doc.add_table(rows=5, cols=2)
+    tbl.style = 'Table Grid'
+    rows_data = [
+        ('Sana:', meeting.date.strftime('%d.%m.%Y %H:%M')),
+        ('Rahbar:', meeting.rahbar.get_full_name() or meeting.rahbar.username),
+        ('Yosh:', meeting.youth.full_name),
+        ('Holat:', meeting.get_status_display()),
+        ('GPS:', f"{meeting.latitude:.6f}, {meeting.longitude:.6f}" if meeting.latitude else '—'),
+    ]
+    for i, (k, v) in enumerate(rows_data):
+        tbl.rows[i].cells[0].text = k
+        run = tbl.rows[i].cells[0].paragraphs[0].runs[0]
+        run.font.bold = True
+        tbl.rows[i].cells[1].text = v
+
+    doc.add_paragraph()
+
+    # So'rovnoma javoblari
+    if answers:
+        doc.add_heading("So'rovnoma javoblari", level=2)
+        for i, ans in enumerate(answers, 1):
+            p = doc.add_paragraph(style='List Number')
+            run = p.add_run(f"{ans.get('q', '')}: ")
+            run.font.bold = True
+            if ans.get('type') == 'photo':
+                p.add_run('[Rasm]')
+            elif ans.get('type') == 'location':
+                p.add_run(f"📍 {ans.get('value', '')}")
+            else:
+                p.add_run(str(ans.get('value', '')))
+    elif meeting.notes:
+        doc.add_heading('Izohlar', level=2)
+        clean = meeting.notes.split('[ANSWERS_JSON]')[0].strip()
+        if clean:
+            doc.add_paragraph(clean)
+
+    # Rasm
+    if meeting.photo:
+        try:
+            doc.add_paragraph()
+            doc.add_heading('Rasm', level=2)
+            doc.add_picture(meeting.photo.path, width=Inches(4))
+        except Exception:
+            pass
+
+    # Imzo qatori
+    doc.add_paragraph()
+    ftbl = doc.add_table(rows=1, cols=3)
+    ftbl.rows[0].cells[0].text = 'Rahbar imzosi: ___________'
+    ftbl.rows[0].cells[1].text = 'Yetakchi imzosi: ___________'
+    ftbl.rows[0].cells[2].text = f"Sana: {meeting.date.strftime('%d.%m.%Y')}"
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

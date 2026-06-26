@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Uchrashuv natijasi — YouthGuard{% endblock %}
+{% block page_title %}✅ Uchrashuv saqlandi{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:0 auto">
+
+  <!-- Muvaffaqiyat xabari -->
+  <div style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;border-radius:12px;padding:20px 24px;margin-bottom:20px;text-align:center">
+    <div style="font-size:48px;margin-bottom:8px">✅</div>
+    <div style="font-size:18px;font-weight:700">Uchrashuv muvaffaqiyatli saqlandi!</div>
+    <div style="font-size:13px;opacity:.9;margin-top:6px">Yetakchi tasdiqlashini kutmoqda</div>
+  </div>
+
+  <!-- Uchrashuv ma'lumotlari -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-handshake"></i> Uchrashuv ma'lumotlari</div>
+      <span class="badge badge-warning">{{ meeting.get_status_display }}</span>
+    </div>
+    <div class="card-body" style="padding:16px 20px">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 0;color:var(--text-muted);width:40%">Rahbar</td>
+          <td style="padding:8px 0;font-weight:600">{{ meeting.rahbar.get_full_name }}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 0;color:var(--text-muted)">Yosh</td>
+          <td style="padding:8px 0;font-weight:600">{{ meeting.youth.full_name }}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 0;color:var(--text-muted)">Sana</td>
+          <td style="padding:8px 0">{{ meeting.date|date:"d.m.Y H:i" }}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 0;color:var(--text-muted)">GPS</td>
+          <td style="padding:8px 0">
+            {% if meeting.latitude %}
+              <span style="color:#27ae60">✅ {{ meeting.latitude|floatformat:5 }}, {{ meeting.longitude|floatformat:5 }}</span>
+            {% else %}
+              <span style="color:var(--text-muted)">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:var(--text-muted)">Rasm</td>
+          <td style="padding:8px 0">
+            {% if meeting.photo %}
+              <span style="color:#27ae60">✅ Mavjud</span>
+            {% else %}
+              <span style="color:var(--text-muted)">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rasm -->
+  {% if meeting.photo %}
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-camera"></i> Rasm</div>
+    </div>
+    <div class="card-body" style="padding:16px;text-align:center">
+      <img src="{{ meeting.photo.url }}" alt="Uchrashuv rasmi"
+           style="max-width:100%;max-height:300px;border-radius:8px;object-fit:contain">
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- So'rovnoma javoblari -->
+  {% if answers %}
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-clipboard-list"></i> So'rovnoma javoblari</div>
+      <span style="font-size:12px;color:var(--text-muted)">{{ answers|length }} ta savol</span>
+    </div>
+    <div class="card-body" style="padding:16px 20px">
+      {% for ans in answers %}
+      <div style="margin-bottom:14px;{% if not forloop.last %}padding-bottom:14px;border-bottom:1px solid var(--border){% endif %}">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">{{ forloop.counter }}. {{ ans.q }}</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text)">
+          {% if ans.type == 'photo' %}
+            📸 Rasm yuklandi
+          {% elif ans.type == 'location' %}
+            📍 {{ ans.value }}
+          {% else %}
+            {{ ans.value }}
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% elif notes_text %}
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-sticky-note"></i> Izoh</div>
+    </div>
+    <div class="card-body" style="padding:16px 20px;font-size:14px;white-space:pre-wrap">{{ notes_text }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Amallar -->
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <a href="/uchrashuvlar/{{ meeting.id }}/word/"
+       style="display:block;background:#2980b9;color:#fff;text-align:center;padding:14px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none">
+      <i class="fas fa-file-word"></i> Word hujjat yuklab olish
+    </a>
+    <a href="/yoshlar/{{ meeting.youth_id }}/"
+       style="display:block;background:var(--bg-secondary,#f0f0f0);color:var(--text);text-align:center;padding:12px;border-radius:10px;font-size:14px;text-decoration:none;border:1px solid var(--border)">
+      ← Yoshga qaytish
+    </a>
+    <a href="/yoshlar/"
+       style="display:block;background:var(--bg-secondary,#f0f0f0);color:var(--text);text-align:center;padding:12px;border-radius:10px;font-size:14px;text-decoration:none;border:1px solid var(--border)">
+      ← Yoshlar ro'yxatiga qaytish
+    </a>
+  </div>
+
+</div>
+{% endblock %}

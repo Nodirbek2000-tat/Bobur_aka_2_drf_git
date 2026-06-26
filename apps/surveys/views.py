@@ -126,7 +126,7 @@ def api_active_survey(request):
                     'required': q.required,
                     'choices': q.choices_list,
                 }
-                for q in survey.questions.all()
+                for q in survey.questions.order_by('order')
             ]
         })
     except Exception as e:

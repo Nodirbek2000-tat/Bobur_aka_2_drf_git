@@ -5,9 +5,15 @@
 {% block topbar_actions %}
 <a href="/yoshlar/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
 {% if user.role == 'rahbar' or user.role == 'yetakchi' %}
-<button onclick="startMeeting({{ youth.id }}, '{{ youth.full_name|escapejs }}')" class="btn btn-primary btn-sm">
-  <i class="fas fa-handshake"></i> Uchrashuvni boshlash
-</button>
+  {% if has_active_survey %}
+  <a href="/yoshlar/{{ youth.id }}/sorovnoma/" class="btn btn-primary btn-sm">
+    <i class="fas fa-handshake"></i> Uchrashuvni boshlash
+  </a>
+  {% else %}
+  <span class="btn btn-outline btn-sm" style="opacity:.5;cursor:default" title="Faol so'rovnoma yo'q">
+    <i class="fas fa-handshake"></i> Uchrashuv
+  </span>
+  {% endif %}
 {% endif %}
 {% endblock %}
 
@@ -88,17 +94,4 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-{% if user.role == 'rahbar' or user.role == 'yetakchi' %}
-<script>
-function startMeeting(youthId, youthName) {
-  if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.sendData) {
-    const data = JSON.stringify({action: 'start_meeting', youth_id: youthId, youth_name: youthName});
-    window.Telegram.WebApp.sendData(data);
-  } else {
-    alert("Bu tugma faqat Telegram Web App ichida ishlaydi.\nBotga o'ting va uchrashuv boshlang.");
-  }
-}
-</script>
-{% endif %}
 {% endblock %}
