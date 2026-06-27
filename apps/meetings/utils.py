@@ -87,12 +87,16 @@ def generate_pdf(meeting):
     elements.append(header_tbl)
     elements.append(Spacer(1, 0.4*cm))
 
+    # Toshkent vaqti (UTC+5)
+    from django.utils import timezone as _dtz
+    local_date = _dtz.localtime(meeting.date)
+
     # Info table
     data = [
         ['QR kod:', qr_code_str, '', qr_img],
         ['Rahbar:', meeting.rahbar.get_full_name() or meeting.rahbar.username, '', ''],
         ['Yosh:', meeting.youth.full_name, '', ''],
-        ['Sana:', meeting.date.strftime('%d.%m.%Y %H:%M'), '', ''],
+        ['Sana:', local_date.strftime('%d.%m.%Y %H:%M'), '', ''],
         ['Holat:', meeting.get_status_display(), '', ''],
         ['Manzil:', meeting.location_address or '—', '', ''],
         ['GPS:', f"{meeting.latitude:.6f}, {meeting.longitude:.6f}" if meeting.latitude else '—', '', ''],
@@ -131,12 +135,23 @@ def generate_pdf(meeting):
                     q_type = ans.get('type', '')
                     val = ans.get('value', '')
                     if q_type == 'photo':
-                        val_txt = '[Rasm]'
+                        elements.append(Paragraph(f"{i}. <b>{q_txt}:</b>", normal))
+                        if meeting.photo:
+                            try:
+                                ph = RLImage(meeting.photo.path, width=8*cm, height=6*cm)
+                                elements.append(ph)
+                            except Exception:
+                                elements.append(Paragraph("  [Rasm yuklandi]", normal))
+                        else:
+                            elements.append(Paragraph("  [Rasm yuklandi]", normal))
+                        elements.append(Spacer(1, 0.2*cm))
                     elif q_type == 'location':
-                        val_txt = f"GPS: {val}"
+                        coords = val.replace(' ', '')
+                        val_txt = f"GPS: {val}  |  maps.google.com/?q={coords}"
+                        elements.append(Paragraph(f"{i}. <b>{q_txt}:</b> {val_txt}", normal))
                     else:
                         val_txt = _strip_emoji(val)
-                    elements.append(Paragraph(f"{i}. <b>{q_txt}:</b> {val_txt}", normal))
+                        elements.append(Paragraph(f"{i}. <b>{q_txt}:</b> {val_txt}", normal))
                 elements.append(Spacer(1, 0.3*cm))
         else:
             clean = _strip_emoji(meeting.notes)
@@ -196,10 +211,12 @@ def generate_word_doc(meeting, answers=None):
     doc.add_paragraph()
 
     # Asosiy ma'lumotlar jadvali
+    from django.utils import timezone as _dtz2
+    _local = _dtz2.localtime(meeting.date)
     tbl = doc.add_table(rows=5, cols=2)
     tbl.style = 'Table Grid'
     rows_data = [
-        ('Sana:', meeting.date.strftime('%d.%m.%Y %H:%M')),
+        ('Sana:', _local.strftime('%d.%m.%Y %H:%M')),
         ('Rahbar:', meeting.rahbar.get_full_name() or meeting.rahbar.username),
         ('Yosh:', meeting.youth.full_name),
         ('Holat:', meeting.get_status_display()),
@@ -246,7 +263,7 @@ def generate_word_doc(meeting, answers=None):
     ftbl = doc.add_table(rows=1, cols=3)
     ftbl.rows[0].cells[0].text = 'Rahbar imzosi: ___________'
     ftbl.rows[0].cells[1].text = 'Yetakchi imzosi: ___________'
-    ftbl.rows[0].cells[2].text = f"Sana: {meeting.date.strftime('%d.%m.%Y')}"
+    ftbl.rows[0].cells[2].text = f"Sana: {_local.strftime('%d.%m.%Y')}"
 
     buf = io.BytesIO()
     doc.save(buf)
