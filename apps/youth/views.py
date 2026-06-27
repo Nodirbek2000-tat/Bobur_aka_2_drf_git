@@ -1,7 +1,7 @@
 from rest_framework import generics, filters
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 import openpyxl
@@ -10,6 +10,32 @@ from django.http import HttpResponse
 from .models import Youth
 from .serializers import YouthSerializer
 from apps.accounts.models import CustomUser, Organization, District
+
+
+def _notify_yetakchi_telegram(meeting, youth, rahbar):
+    """Yetakchiga Telegram xabar yuborish — uchrashuv bo'lganda."""
+    import requests, os
+    token = os.environ.get('BOT_TOKEN', '')
+    yetakchi = youth.yetakchi
+    if not token or not yetakchi or not yetakchi.telegram_id:
+        return
+    text = (
+        f"🤝 <b>Yangi uchrashuv!</b>\n\n"
+        f"👤 Yosh: <b>{youth.full_name}</b>\n"
+        f"👨‍💼 Rahbar: {rahbar.get_full_name()}\n"
+        f"📅 Sana: {meeting.date.strftime('%d.%m.%Y %H:%M')}"
+    )
+    result_url = f"https://sam-auth.uz/uchrashuvlar/{meeting.id}/natija/"
+    keyboard = {"inline_keyboard": [[{"text": "📋 Natijani ko'rish", "url": result_url}]]}
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": yetakchi.telegram_id, "text": text,
+                  "parse_mode": "HTML", "reply_markup": keyboard},
+            timeout=5
+        )
+    except Exception:
+        pass
 
 
 class YouthListAPI(generics.ListAPIView):
@@ -50,13 +76,13 @@ def youth_list(request):
         qs = qs.filter(yetakchi=user)
 
     search = request.GET.get('q', '')
-    org_filter = request.GET.get('org', '')
+    tizim_filter = request.GET.get('tizim', '')
     district_filter = request.GET.get('district', '')
 
     if search:
         qs = qs.filter(full_name__icontains=search)
-    if org_filter:
-        qs = qs.filter(organization_id=org_filter)
+    if tizim_filter:
+        qs = qs.filter(notes__icontains=f'Biriktirilgan tizim: {tizim_filter}')
     if district_filter:
         qs = qs.filter(organization__district_id=district_filter)
 
@@ -64,8 +90,18 @@ def youth_list(request):
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get('page', 1))
 
-    orgs = Organization.objects.all() if user.is_admin else Organization.objects.none()
     districts = District.objects.all() if user.is_admin else District.objects.none()
+
+    # Unique tizim qiymatlarini notes dan ajratib olish
+    tizim_values = set()
+    for notes in Youth.objects.filter(notes__icontains='Biriktirilgan tizim:').values_list('notes', flat=True):
+        for line in (notes or '').split('\n'):
+            line = line.strip()
+            if line.startswith('Biriktirilgan tizim:'):
+                val = line.replace('Biriktirilgan tizim:', '').strip()
+                if val:
+                    tizim_values.add(val)
+    tizim_values = sorted(tizim_values)
 
     from apps.surveys.models import Survey
     has_active_survey = Survey.objects.filter(is_active=True).exists()
@@ -74,9 +110,9 @@ def youth_list(request):
         'page': page,
         'search': search,
         'total': total,
-        'org_filter': org_filter,
+        'tizim_filter': tizim_filter,
         'district_filter': district_filter,
-        'orgs': orgs,
+        'tizim_values': tizim_values,
         'districts': districts,
         'has_active_survey': has_active_survey,
     })
@@ -176,6 +212,8 @@ def youth_survey_view(request, pk):
 
         if youth.yetakchi:
             Verification.objects.create(meeting=meeting, verifier=youth.yetakchi)
+
+        _notify_yetakchi_telegram(meeting, youth, rahbar)
 
         return redirect(f'/uchrashuvlar/{meeting.id}/natija/')
 

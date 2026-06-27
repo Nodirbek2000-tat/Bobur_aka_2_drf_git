@@ -4,7 +4,7 @@
 
 {% block topbar_actions %}
 <a href="/yoshlar/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
-{% if user.role == 'rahbar' or user.role == 'yetakchi' %}
+{% if user.role == 'rahbar' %}
   {% if has_active_survey %}
   <a href="/yoshlar/{{ youth.id }}/sorovnoma/" class="btn btn-primary btn-sm">
     <i class="fas fa-handshake"></i> Uchrashuvni boshlash
@@ -92,6 +92,4 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
 {% endblock %}

@@ -28,16 +28,16 @@
           {% endfor %}
         </select>
         {% endif %}
-        {% if orgs %}
-        <select name="org" class="form-control" style="width:200px">
-          <option value="">— Barcha MFYlar —</option>
-          {% for o in orgs %}
-          <option value="{{ o.id }}" {% if org_filter == o.id|stringformat:"s" %}selected{% endif %}>{{ o.name }}</option>
+        {% if tizim_values %}
+        <select name="tizim" class="form-control" style="width:220px">
+          <option value="">— Barcha tizimlar —</option>
+          {% for t in tizim_values %}
+          <option value="{{ t }}" {% if tizim_filter == t %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
         {% endif %}
         <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filtr</button>
-        {% if search or org_filter or district_filter %}
+        {% if search or tizim_filter or district_filter %}
         <a href="?" class="btn btn-outline"><i class="fas fa-times"></i></a>
         {% endif %}
       </div>
@@ -119,17 +119,17 @@
 {% if page.has_other_pages %}
 <div class="pagination">
   {% if page.has_previous %}
-    <a href="?page={{ page.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if org_filter %}&org={{ org_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
+    <a href="?page={{ page.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if tizim_filter %}&tizim={{ tizim_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
   {% endif %}
   {% for n in page.paginator.page_range %}
     {% if n == page.number %}
       <span class="page-btn active">{{ n }}</span>
     {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}
-      <a href="?page={{ n }}{% if search %}&q={{ search }}{% endif %}{% if org_filter %}&org={{ org_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn">{{ n }}</a>
+      <a href="?page={{ n }}{% if search %}&q={{ search }}{% endif %}{% if tizim_filter %}&tizim={{ tizim_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn">{{ n }}</a>
     {% endif %}
   {% endfor %}
   {% if page.has_next %}
-    <a href="?page={{ page.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if org_filter %}&org={{ org_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+    <a href="?page={{ page.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if tizim_filter %}&tizim={{ tizim_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
   {% endif %}
 </div>
 {% endif %}

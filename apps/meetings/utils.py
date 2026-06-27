@@ -51,14 +51,41 @@ def generate_pdf(meeting):
 
     elements = []
 
-    # Header
-    elements.append(Paragraph("YOUTHGUARD", title_style))
-    elements.append(Paragraph("Yoshlar bilan uchrashuv dalolatnomasi", header_style))
-    elements.append(Spacer(1, 0.5*cm))
-
     # QR code
     qr_bytes = generate_qr_code(qr_code_str)
     qr_img = RLImage(io.BytesIO(qr_bytes), width=3*cm, height=3*cm)
+
+    # Meeting photo — o'ng yuqori burchakda
+    photo_img = None
+    if meeting.photo:
+        try:
+            photo_img = RLImage(meeting.photo.path, width=3*cm, height=3.5*cm)
+        except Exception:
+            pass
+
+    # Sarlavha + rasm — o'ng yuqori
+    title_left_style = ParagraphStyle('title_left', parent=styles['Heading1'],
+                                       fontSize=16, spaceAfter=4, alignment=0,
+                                       textColor=colors.HexColor('#1a5276'))
+    sub_left_style = ParagraphStyle('sub_left', parent=styles['Normal'],
+                                    fontSize=9, textColor=colors.grey)
+    header_content = [
+        Paragraph("YOUTHGUARD", title_left_style),
+        Paragraph("Yoshlar bilan uchrashuv dalolatnomasi", sub_left_style),
+    ]
+    from reportlab.platypus import KeepTogether
+    header_row = [[header_content, photo_img or '']]
+    header_tbl = Table(header_row, colWidths=[13*cm, 4*cm])
+    header_tbl.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(header_tbl)
+    elements.append(Spacer(1, 0.4*cm))
 
     # Info table
     data = [
@@ -71,18 +98,20 @@ def generate_pdf(meeting):
         ['GPS:', f"{meeting.latitude:.6f}, {meeting.longitude:.6f}" if meeting.latitude else '—', '', ''],
     ]
 
-    table = Table(data, colWidths=[4*cm, 9*cm, 0.5*cm, 3.5*cm])
-    table.setStyle(TableStyle([
+    ts = [
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.HexColor('#f8f9fa'), colors.white]),
+        ('ROWBACKGROUNDS', (0, 0), (1, -1), [colors.HexColor('#f8f9fa'), colors.white]),
         ('GRID', (0, 0), (1, -1), 0.5, colors.HexColor('#dee2e6')),
-        ('SPAN', (3, 0), (3, 3)),
-        ('VALIGN', (3, 0), (3, 3), 'MIDDLE'),
-        ('ALIGN', (3, 0), (3, 3), 'CENTER'),
+        ('SPAN', (3, 0), (3, 6)),
+        ('VALIGN', (3, 0), (3, 6), 'MIDDLE'),
+        ('ALIGN', (3, 0), (3, 6), 'CENTER'),
+        ('BACKGROUND', (3, 0), (3, -1), colors.white),
         ('PADDING', (0, 0), (-1, -1), 6),
-    ]))
+    ]
+    table = Table(data, colWidths=[4*cm, 9*cm, 0.5*cm, 3.5*cm])
+    table.setStyle(TableStyle(ts))
     elements.append(table)
     elements.append(Spacer(1, 0.5*cm))
 
@@ -183,7 +212,7 @@ def generate_word_doc(meeting, answers=None):
         try:
             doc.add_paragraph()
             doc.add_heading('Rasm', level=2)
-            doc.add_picture(meeting.photo.path, width=Inches(4))
+            doc.add_picture(meeting.photo.path, width=Cm(7))
         except Exception:
             pass
 
