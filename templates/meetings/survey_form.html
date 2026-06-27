@@ -16,7 +16,7 @@
     </div>
     {% endif %}
 
-    <form method="POST" enctype="multipart/form-data" id="surveyForm">
+    <form method="POST" enctype="multipart/form-data" id="surveyForm" novalidate>
       {% csrf_token %}
 
       {% for q in questions %}
@@ -56,31 +56,55 @@
           </div>
 
         {% elif q.type == 'photo' %}
+          <!-- Base64 hidden input (kamera rasmini saqlaydi) -->
+          <input type="hidden" name="q_{{ q.id }}_photo_b64" id="photo_b64_{{ q.id }}">
+          <input type="hidden" id="photo_required_{{ q.id }}" value="{% if q.required %}1{% else %}0{% endif %}">
+          <canvas id="canvas_{{ q.id }}" style="display:none"></canvas>
+
           <div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center">
-            <input type="file" name="q_{{ q.id }}_photo" id="photo_{{ q.id }}"
-                   accept="image/*" capture="environment"
-                   {% if q.required %}required{% endif %}
-                   onchange="previewPhoto(this, 'preview_{{ q.id }}')"
-                   style="display:none">
-            <label for="photo_{{ q.id }}" style="cursor:pointer;display:block">
-              <div id="preview_{{ q.id }}" style="margin-bottom:10px"></div>
-              <span style="background:var(--primary);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600">
-                📸 Rasm olish / tanlash
-              </span>
-            </label>
+            <div id="preview_{{ q.id }}" style="margin-bottom:12px"></div>
+
+            <button type="button" id="cameraBtn_{{ q.id }}" onclick="startCamera('{{ q.id }}')"
+                    style="background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%">
+              📸 Kameradan rasm olish
+            </button>
+            <button type="button" id="retakeBtn_{{ q.id }}" onclick="startCamera('{{ q.id }}')"
+                    style="display:none;margin-top:8px;background:transparent;color:var(--primary);border:1.5px solid var(--primary);padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;width:100%">
+              🔄 Qayta olish
+            </button>
+          </div>
+
+          <!-- Kamera modal -->
+          <div id="cameraModal_{{ q.id }}" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9999;flex-direction:column">
+            <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              <video id="video_{{ q.id }}" autoplay playsinline muted
+                     style="width:100%;height:100%;object-fit:cover"></video>
+              <button type="button" onclick="closeCamera('{{ q.id }}')"
+                      style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer;z-index:10">
+                ✕
+              </button>
+            </div>
+            <div style="background:#000;padding:28px;display:flex;justify-content:center">
+              <button type="button" onclick="capturePhoto('{{ q.id }}')"
+                      style="background:#fff;color:#000;border:none;border-radius:50%;width:72px;height:72px;font-size:32px;cursor:pointer;box-shadow:0 0 0 5px rgba(255,255,255,0.25)">
+                📷
+              </button>
+            </div>
           </div>
 
         {% elif q.type == 'location' %}
           <input type="hidden" name="q_{{ q.id }}_lat" id="lat_{{ q.id }}">
           <input type="hidden" name="q_{{ q.id }}_lng" id="lng_{{ q.id }}">
+          <input type="hidden" id="loc_required_{{ q.id }}" value="{% if q.required %}1{% else %}0{% endif %}">
           <div style="display:flex;flex-direction:column;gap:10px">
-            <button type="button" onclick="getLocation('{{ q.id }}')"
-                    style="background:var(--primary);color:#fff;border:none;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%">
-              📍 Joriy lokatsiyani aniqlash
-            </button>
-            <div id="loc_status_{{ q.id }}" style="font-size:13px;color:var(--text-muted);padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);min-height:36px">
-              Aniqlanmagan
+            <div id="loc_status_{{ q.id }}" style="font-size:13px;padding:12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);min-height:42px;display:flex;align-items:center;color:var(--text-muted)">
+              ⏳ Lokatsiya aniqlanmoqda...
             </div>
+            <div id="maps_link_{{ q.id }}" style="display:none"></div>
+            <button type="button" id="locBtn_{{ q.id }}" onclick="getLocation('{{ q.id }}')"
+                    style="background:transparent;color:var(--primary);border:1.5px solid var(--primary);padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;width:100%">
+              📍 Qayta aniqlash
+            </button>
           </div>
         {% endif %}
       </div>
@@ -95,16 +119,72 @@
 </div>
 
 <script>
+var _camStreams = {};
+
+// ─── KAMERA ───────────────────────────────────────────
+function startCamera(qid) {
+  var modal = document.getElementById('cameraModal_' + qid);
+  var video = document.getElementById('video_' + qid);
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+
+  navigator.mediaDevices.getUserMedia({
+    video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}},
+    audio: false
+  }).then(function(stream) {
+    _camStreams[qid] = stream;
+    video.srcObject = stream;
+    video.play();
+  }).catch(function(err) {
+    modal.style.display = 'none';
+    alert('Kameraga ruxsat berilmadi.\nBrauzer sozlamalarida kameraga ruxsat bering.\n(' + err.message + ')');
+  });
+}
+
+function capturePhoto(qid) {
+  var video = document.getElementById('video_' + qid);
+  var canvas = document.getElementById('canvas_' + qid);
+  var preview = document.getElementById('preview_' + qid);
+  var b64Input = document.getElementById('photo_b64_' + qid);
+  var cameraBtn = document.getElementById('cameraBtn_' + qid);
+  var retakeBtn = document.getElementById('retakeBtn_' + qid);
+
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  b64Input.value = dataUrl;
+
+  preview.innerHTML = '<img src="' + dataUrl + '" style="max-width:100%;max-height:240px;border-radius:8px;object-fit:contain">';
+  cameraBtn.style.display = 'none';
+  retakeBtn.style.display = 'block';
+
+  closeCamera(qid);
+}
+
+function closeCamera(qid) {
+  var modal = document.getElementById('cameraModal_' + qid);
+  var stream = _camStreams[qid];
+  if (stream) {
+    stream.getTracks().forEach(function(t) { t.stop(); });
+    delete _camStreams[qid];
+  }
+  if (modal) modal.style.display = 'none';
+}
+
+// ─── GPS ──────────────────────────────────────────────
 function getLocation(qid) {
-  var btn = document.querySelector('[onclick="getLocation(\'' + qid + '\')"]');
-  var status = document.getElementById('loc_status_' + qid);
-  btn.textContent = '⏳ Aniqlanmoqda...';
-  btn.disabled = true;
+  var statusEl = document.getElementById('loc_status_' + qid);
+  var btn = document.getElementById('locBtn_' + qid);
+  var mapsDiv = document.getElementById('maps_link_' + qid);
+
+  statusEl.innerHTML = '⏳ Aniqlanmoqda...';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Aniqlanmoqda...'; }
 
   if (!navigator.geolocation) {
-    status.textContent = '❌ Brauzer lokatsiyani qo\'llab-quvvatlamaydi';
-    btn.disabled = false;
-    btn.textContent = '📍 Joriy lokatsiyani aniqlash';
+    statusEl.innerHTML = '<span style="color:#e74c3c">❌ Brauzer lokatsiyani qo\'llab-quvvatlamaydi</span>';
+    if (btn) { btn.disabled = false; btn.textContent = '📍 Qayta aniqlash'; }
     return;
   }
 
@@ -113,43 +193,83 @@ function getLocation(qid) {
     var lng = pos.coords.longitude;
     document.getElementById('lat_' + qid).value = lat;
     document.getElementById('lng_' + qid).value = lng;
-    status.innerHTML = '<span style="color:#27ae60;font-weight:600">✅ Aniqlandi: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</span>';
-    btn.textContent = '📍 Qayta aniqlash';
-    btn.disabled = false;
+
+    statusEl.innerHTML = '<span style="color:#27ae60;font-weight:600">✅ Aniqlandi: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</span>';
+    if (btn) { btn.disabled = false; btn.textContent = '📍 Qayta aniqlash'; }
+
+    // Google Maps link
+    var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+    mapsDiv.style.display = 'block';
+    mapsDiv.innerHTML = '<a href="' + mapsUrl + '" target="_blank" rel="noopener" '
+      + 'style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#e8f5e9;'
+      + 'border-radius:8px;text-decoration:none;color:#27ae60;font-size:13px;font-weight:600;'
+      + 'border:1px solid #c8e6c9">🗺️ Google Xaritada ko\'rish</a>';
+
   }, function(err) {
-    status.textContent = '❌ Xato: ' + err.message;
-    btn.textContent = '📍 Qayta urinish';
-    btn.disabled = false;
-  }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0});
+    statusEl.innerHTML = '<span style="color:#e74c3c">❌ ' + err.message + '</span>';
+    if (btn) { btn.disabled = false; btn.textContent = '📍 Qayta urinish'; }
+  }, {enableHighAccuracy: true, timeout: 20000, maximumAge: 0});
 }
 
-function previewPhoto(input, previewId) {
-  var preview = document.getElementById(previewId);
-  if (input.files && input.files[0]) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      preview.innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:200px;border-radius:8px;margin-bottom:8px">';
-    };
-    reader.readAsDataURL(input.files[0]);
+// Sahifa yuklanganda GPS avtomatik aniqlash
+window.addEventListener('load', function() {
+  document.querySelectorAll('[id^="lat_"]').forEach(function(el) {
+    var qid = el.id.replace('lat_', '');
+    getLocation(qid);
+  });
+});
+
+// ─── FORM YUBORISH ────────────────────────────────────
+document.getElementById('surveyForm').addEventListener('submit', function(e) {
+  // Rasm tekshirish
+  var ok = true;
+  document.querySelectorAll('[id^="photo_required_"]').forEach(function(reqEl) {
+    var qid = reqEl.id.replace('photo_required_', '');
+    if (reqEl.value === '1') {
+      var b64 = document.getElementById('photo_b64_' + qid);
+      if (!b64 || !b64.value) {
+        ok = false;
+        document.getElementById('cameraBtn_' + qid).style.outline = '2px solid #e74c3c';
+      }
+    }
+  });
+  if (!ok) {
+    e.preventDefault();
+    alert('Iltimos, barcha majburiy rasmlarnni oling!');
+    return;
   }
-}
 
-document.getElementById('surveyForm').addEventListener('submit', function() {
+  // GPS tekshirish
+  document.querySelectorAll('[id^="loc_required_"]').forEach(function(reqEl) {
+    var qid = reqEl.id.replace('loc_required_', '');
+    if (reqEl.value === '1') {
+      var latEl = document.getElementById('lat_' + qid);
+      if (!latEl || !latEl.value) {
+        ok = false;
+      }
+    }
+  });
+  if (!ok) {
+    e.preventDefault();
+    alert('Lokatsiya hali aniqlanmadi. Bir oz kuting yoki "Qayta aniqlash" tugmasini bosing.');
+    return;
+  }
+
   var btn = document.getElementById('submitBtn');
   btn.textContent = '⏳ Saqlanmoqda...';
   btn.disabled = true;
 });
 
-// Choice label faol holat
+// ─── RADIO FAOLLASHTIRISH ─────────────────────────────
 document.querySelectorAll('.choice-label input[type=radio]').forEach(function(radio) {
   radio.addEventListener('change', function() {
-    document.querySelectorAll('.choice-label[style]').forEach(function(l) {
+    document.querySelectorAll('.choice-label').forEach(function(l) {
       l.style.borderColor = 'var(--border)';
       l.style.background = 'var(--bg)';
     });
     if (this.checked) {
       this.parentElement.style.borderColor = 'var(--primary)';
-      this.parentElement.style.background = 'rgba(var(--primary-rgb, 52,152,219), 0.08)';
+      this.parentElement.style.background = 'rgba(52,152,219,0.08)';
     }
   });
 });

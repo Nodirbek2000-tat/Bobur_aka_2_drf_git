@@ -14,7 +14,7 @@ from apps.accounts.models import CustomUser, Organization, District
 
 def _notify_yetakchi_telegram(meeting, youth, rahbar):
     """Yetakchiga Telegram xabar yuborish — uchrashuv bo'lganda."""
-    import requests, os
+    import urllib.request, json as _json, os
     token = os.environ.get('BOT_TOKEN', '')
     yetakchi = youth.yetakchi
     if not token or not yetakchi or not yetakchi.telegram_id:
@@ -26,14 +26,21 @@ def _notify_yetakchi_telegram(meeting, youth, rahbar):
         f"📅 Sana: {meeting.date.strftime('%d.%m.%Y %H:%M')}"
     )
     result_url = f"https://sam-auth.uz/uchrashuvlar/{meeting.id}/natija/"
-    keyboard = {"inline_keyboard": [[{"text": "📋 Natijani ko'rish", "url": result_url}]]}
+    payload = _json.dumps({
+        "chat_id": yetakchi.telegram_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": {
+            "inline_keyboard": [[{"text": "\U0001f4cb Natijani ko'rish", "url": result_url}]]
+        }
+    }).encode()
     try:
-        requests.post(
+        req = urllib.request.Request(
             f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": yetakchi.telegram_id, "text": text,
-                  "parse_mode": "HTML", "reply_markup": keyboard},
-            timeout=5
+            data=payload,
+            headers={"Content-Type": "application/json"}
         )
+        urllib.request.urlopen(req, timeout=5)
     except Exception:
         pass
 
@@ -175,10 +182,21 @@ def youth_survey_view(request, pk):
                     pass  # Majburiy emas bo'lsa o'tkazib yuborish
             elif qtype == 'photo':
                 pf = request.FILES.get(f'q_{q.id}_photo')
+                b64 = request.POST.get(f'q_{q.id}_photo_b64', '').strip()
                 if pf:
                     photo_file = pf
                     notes_parts.append(f"📸 {q.text}: [Rasm]")
                     answers.append({'q': q.text, 'type': 'photo', 'value': 'rasm_yuklandi'})
+                elif b64:
+                    import base64 as _b64
+                    from django.core.files.base import ContentFile as _CF
+                    try:
+                        raw = _b64.b64decode(b64.split(',')[-1])
+                        photo_file = _CF(raw, name=f'survey_{youth.id}.jpg')
+                        notes_parts.append(f"📸 {q.text}: [Rasm]")
+                        answers.append({'q': q.text, 'type': 'photo', 'value': 'rasm_yuklandi'})
+                    except Exception:
+                        pass
             else:
                 val = request.POST.get(f'q_{q.id}', '').strip()
                 if val:

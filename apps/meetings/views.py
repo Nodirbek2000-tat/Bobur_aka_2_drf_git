@@ -304,8 +304,24 @@ def meetings_list(request):
 
 @login_required
 def meeting_detail(request, pk):
+    import json as _j
     meeting = get_object_or_404(Meeting, pk=pk)
-    return render(request, 'meetings/detail.html', {'meeting': meeting})
+    notes_raw = meeting.notes or ''
+    if '[ANSWERS_JSON]' in notes_raw:
+        parts = notes_raw.split('[ANSWERS_JSON]')
+        clean_notes = parts[0].strip()
+        try:
+            detail_answers = _j.loads(parts[1].strip())
+        except Exception:
+            detail_answers = []
+    else:
+        clean_notes = notes_raw.strip()
+        detail_answers = []
+    return render(request, 'meetings/detail.html', {
+        'meeting': meeting,
+        'clean_notes': clean_notes,
+        'detail_answers': detail_answers,
+    })
 
 
 @login_required
@@ -518,12 +534,12 @@ def _notify_bot(telegram_id, session_id, photo_count):
         "chat_id": telegram_id,
         "text": f"✅ <b>{photo_count} ta rasm qabul qilindi!</b>\nDavom etish uchun tugmani bosing:",
         "parse_mode": "HTML",
-        "reply_markup": _json.dumps({
+        "reply_markup": {
             "inline_keyboard": [[{
                 "text": "▶️ Davom etish",
                 "callback_data": f"camera_done:{session_id}"
             }]]
-        })
+        }
     }).encode()
     try:
         req = urllib.request.Request(

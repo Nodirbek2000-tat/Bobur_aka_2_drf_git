@@ -116,8 +116,33 @@ def generate_pdf(meeting):
     elements.append(Spacer(1, 0.5*cm))
 
     if meeting.notes:
-        elements.append(Paragraph(f"<b>Izoh:</b> {meeting.notes}", normal))
-        elements.append(Spacer(1, 0.3*cm))
+        import json as _j, re as _r
+        _strip_emoji = lambda s: _r.sub(r'[^\x00-\x7FЀ-ӿÀ-ɏ\s]', '', str(s))
+        if '[ANSWERS_JSON]' in meeting.notes:
+            try:
+                survey_answers = _j.loads(meeting.notes.split('[ANSWERS_JSON]')[1].strip())
+            except Exception:
+                survey_answers = []
+            if survey_answers:
+                elements.append(Paragraph("<b>So'rovnoma javoblari:</b>", normal))
+                elements.append(Spacer(1, 0.15*cm))
+                for i, ans in enumerate(survey_answers, 1):
+                    q_txt = _strip_emoji(ans.get('q', ''))
+                    q_type = ans.get('type', '')
+                    val = ans.get('value', '')
+                    if q_type == 'photo':
+                        val_txt = '[Rasm]'
+                    elif q_type == 'location':
+                        val_txt = f"GPS: {val}"
+                    else:
+                        val_txt = _strip_emoji(val)
+                    elements.append(Paragraph(f"{i}. <b>{q_txt}:</b> {val_txt}", normal))
+                elements.append(Spacer(1, 0.3*cm))
+        else:
+            clean = _strip_emoji(meeting.notes)
+            if clean.strip():
+                elements.append(Paragraph(f"<b>Izoh:</b> {clean}", normal))
+                elements.append(Spacer(1, 0.3*cm))
 
     if meeting.impossible_reason:
         elements.append(Paragraph(f"<b>Imkonsizlik sababi:</b> {meeting.impossible_reason}", normal))

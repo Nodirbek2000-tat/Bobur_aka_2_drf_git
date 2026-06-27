@@ -36,7 +36,11 @@
           <td style="padding:8px 0;color:var(--text-muted)">GPS</td>
           <td style="padding:8px 0">
             {% if meeting.latitude %}
-              <span style="color:#27ae60">✅ {{ meeting.latitude|floatformat:5 }}, {{ meeting.longitude|floatformat:5 }}</span>
+              <a href="https://www.google.com/maps?q={{ meeting.latitude }},{{ meeting.longitude }}"
+                 target="_blank" rel="noopener"
+                 style="display:inline-flex;align-items:center;gap:6px;color:#27ae60;font-weight:600;text-decoration:none;font-size:13px">
+                🗺️ {{ meeting.latitude|floatformat:5 }}, {{ meeting.longitude|floatformat:5 }}
+              </a>
             {% else %}
               <span style="color:var(--text-muted)">—</span>
             {% endif %}
@@ -84,7 +88,10 @@
           {% if ans.type == 'photo' %}
             📸 Rasm yuklandi
           {% elif ans.type == 'location' %}
-            📍 {{ ans.value }}
+            <a href="https://www.google.com/maps?q={{ ans.value }}" target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:6px;color:#27ae60;font-weight:600;text-decoration:none">
+              🗺️ {{ ans.value }}
+            </a>
           {% else %}
             {{ ans.value }}
           {% endif %}
