@@ -197,13 +197,18 @@ function getLocation(qid) {
     statusEl.innerHTML = '<span style="color:#27ae60;font-weight:600">✅ Aniqlandi: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</span>';
     if (btn) { btn.disabled = false; btn.textContent = '📍 Qayta aniqlash'; }
 
-    // Google Maps link
+    // Google Maps embed (bepul, API key shart emas)
     var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+    var embedUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng + '&z=16&output=embed';
     mapsDiv.style.display = 'block';
-    mapsDiv.innerHTML = '<a href="' + mapsUrl + '" target="_blank" rel="noopener" '
-      + 'style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#e8f5e9;'
-      + 'border-radius:8px;text-decoration:none;color:#27ae60;font-size:13px;font-weight:600;'
-      + 'border:1px solid #c8e6c9">🗺️ Google Xaritada ko\'rish</a>';
+    mapsDiv.innerHTML =
+      '<iframe src="' + embedUrl + '" width="100%" height="220" '
+      + 'style="border:0;border-radius:8px;margin-top:4px" allowfullscreen loading="lazy"></iframe>'
+      + '<a href="' + mapsUrl + '" target="_blank" rel="noopener" '
+      + 'style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;'
+      + 'padding:8px;background:#e8f5e9;border-radius:8px;text-decoration:none;'
+      + 'color:#27ae60;font-size:13px;font-weight:600;border:1px solid #c8e6c9">'
+      + '🗺️ Google Xaritada kattaroq ochish</a>';
 
   }, function(err) {
     statusEl.innerHTML = '<span style="color:#e74c3c">❌ ' + err.message + '</span>';
