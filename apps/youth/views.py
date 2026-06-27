@@ -25,13 +25,16 @@ def _notify_yetakchi_telegram(meeting, youth, rahbar):
         f"👨‍💼 Rahbar: {rahbar.get_full_name()}\n"
         f"📅 Sana: {meeting.date.strftime('%d.%m.%Y %H:%M')}"
     )
-    result_url = f"https://sam-auth.uz/uchrashuvlar/{meeting.id}/natija/"
+    webapp_url = f"https://sam-auth.uz/uchrashuvlar/webapp/uchrashuv/{meeting.id}/"
     payload = _json.dumps({
         "chat_id": yetakchi.telegram_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": {
-            "inline_keyboard": [[{"text": "\U0001f4cb Natijani ko'rish", "url": result_url}]]
+            "inline_keyboard": [[{
+                "text": "✅ Ko’rish va Tasdiqlash",
+                "web_app": {"url": webapp_url}
+            }]]
         }
     }).encode()
     try:

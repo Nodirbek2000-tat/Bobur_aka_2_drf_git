@@ -552,6 +552,155 @@ def _notify_bot(telegram_id, session_id, photo_count):
         pass
 
 
+# ─────────────── TELEGRAM WEBAPP ───────────────
+
+@csrf_exempt
+def webapp_auth(request):
+    """Telegram WebApp initData orqali session yaratish (login/parol shart emas)."""
+    import hmac as _hmac, hashlib as _hs, json as _j, urllib.parse as _up, os as _os
+    from django.conf import settings as _s
+
+    if request.method != 'POST':
+        return HttpResponse(_json.dumps({'error': 'POST required'}), status=405, content_type='application/json')
+
+    try:
+        body = _j.loads(request.body)
+        init_data = body.get('initData', '')
+    except Exception:
+        init_data = request.POST.get('initData', '')
+
+    if not init_data:
+        return HttpResponse(_json.dumps({'error': 'initData kerak'}), status=400, content_type='application/json')
+
+    parsed = dict(_up.parse_qsl(init_data, keep_blank_values=True))
+    hash_val = parsed.pop('hash', '')
+
+    token = getattr(_s, 'BOT_TOKEN', '') or _os.environ.get('BOT_TOKEN', '')
+    secret_key = _hmac.new(b'WebAppData', token.encode(), _hs.sha256).digest()
+    check_str = '\n'.join(f'{k}={v}' for k, v in sorted(parsed.items()))
+    computed = _hmac.new(secret_key, check_str.encode(), _hs.sha256).hexdigest()
+
+    if computed != hash_val:
+        return HttpResponse(_json.dumps({'error': "Telegram ma'lumotlari noto'g'ri"}), status=403, content_type='application/json')
+
+    try:
+        user_data = _j.loads(parsed.get('user', '{}'))
+        tg_id = int(user_data.get('id', 0))
+    except Exception:
+        tg_id = 0
+
+    if not tg_id:
+        return HttpResponse(_json.dumps({'error': 'telegram_id topilmadi'}), status=400, content_type='application/json')
+
+    try:
+        user = CustomUser.objects.get(telegram_id=tg_id)
+    except CustomUser.DoesNotExist:
+        return HttpResponse(_json.dumps({'error': "Siz tizimda ro'yxatdan o'tmagansiz. Avval botga /start yuboring."}), status=404, content_type='application/json')
+
+    request.session['webapp_user_id'] = user.id
+    request.session.save()
+    return HttpResponse(_json.dumps({'ok': True, 'name': user.get_full_name(), 'role': user.role}), content_type='application/json')
+
+
+def webapp_meeting(request, pk):
+    """Yetakchi uchun WebApp uchrashuv ko'rish va tasdiqlash sahifasi."""
+    user_id = request.session.get('webapp_user_id')
+    webapp_user = None
+    if user_id:
+        try:
+            webapp_user = CustomUser.objects.get(pk=user_id)
+        except CustomUser.DoesNotExist:
+            pass
+
+    if not webapp_user:
+        return render(request, 'webapp/auth.html', {'meeting_pk': pk})
+
+    meeting = get_object_or_404(Meeting, pk=pk)
+
+    if webapp_user.role == 'yetakchi' and meeting.youth.yetakchi_id != webapp_user.id:
+        return render(request, 'webapp/error.html', {'msg': "Bu uchrashuv sizga tegishli emas"})
+
+    answers = []
+    notes_text = ''
+    if meeting.notes and '[ANSWERS_JSON]' in meeting.notes:
+        parts = meeting.notes.split('[ANSWERS_JSON]')
+        notes_text = parts[0].strip()
+        try:
+            import json as _jj
+            answers = _jj.loads(parts[1].strip())
+        except Exception:
+            pass
+
+    verification = None
+    try:
+        verification = meeting.verification
+    except Exception:
+        pass
+
+    can_verify = (
+        webapp_user.role == 'yetakchi' and
+        verification is not None and
+        verification.verifier_id == webapp_user.id and
+        verification.status == 'pending'
+    )
+
+    return render(request, 'webapp/meeting_verify.html', {
+        'meeting': meeting,
+        'answers': answers,
+        'notes_text': notes_text,
+        'webapp_user': webapp_user,
+        'verification': verification,
+        'can_verify': can_verify,
+    })
+
+
+@csrf_exempt
+def webapp_verify_action(request, pk):
+    """Yetakchi tasdiqlash / rad etish (WebApp dan)."""
+    if request.method != 'POST':
+        return HttpResponse(_json.dumps({'error': 'POST required'}), status=405, content_type='application/json')
+
+    user_id = request.session.get('webapp_user_id')
+    if not user_id:
+        return HttpResponse(_json.dumps({'error': 'Login kerak'}), status=403, content_type='application/json')
+
+    try:
+        webapp_user = CustomUser.objects.get(pk=user_id)
+    except CustomUser.DoesNotExist:
+        return HttpResponse(_json.dumps({'error': 'Foydalanuvchi topilmadi'}), status=403, content_type='application/json')
+
+    try:
+        data = _json.loads(request.body)
+    except Exception:
+        data = {}
+
+    action = data.get('action', '')
+    reason = data.get('reason', '')
+
+    try:
+        verification = Verification.objects.get(meeting_id=pk, verifier=webapp_user, status='pending')
+    except Verification.DoesNotExist:
+        return HttpResponse(_json.dumps({'error': 'Tasdiqlash topilmadi yoki allaqachon amalga oshirilgan'}), status=404, content_type='application/json')
+
+    from django.utils import timezone as _tz
+    if action == 'approve':
+        verification.status = 'approved'
+        verification.meeting.status = 'verified'
+        verification.verified_at = _tz.now()
+        generate_pdf(verification.meeting)
+    elif action == 'reject':
+        verification.status = 'rejected'
+        verification.rejection_reason = reason
+        verification.meeting.status = 'rejected'
+    else:
+        return HttpResponse(_json.dumps({'error': "action 'approve' yoki 'reject' bo'lishi kerak"}), status=400, content_type='application/json')
+
+    verification.meeting.save()
+    verification.save()
+    log_action(webapp_user, f'WebApp {action}', 'Verification', verification.id)
+    return HttpResponse(_json.dumps({'ok': True, 'status': action}), content_type='application/json')
+
+
 def camera_status(request, session_id):
     try:
         session = CameraSession.objects.get(session_id=session_id)

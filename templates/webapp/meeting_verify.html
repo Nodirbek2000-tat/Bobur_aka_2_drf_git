@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Uchrashuv — YouthGuard</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--tg-theme-bg-color, #f0f0f0);
+    color: var(--tg-theme-text-color, #000);
+    padding: 0 0 100px 0;
+    font-size: 14px;
+  }
+  .header {
+    background: var(--tg-theme-secondary-bg-color, #fff);
+    padding: 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .header-icon { font-size: 28px; }
+  .header-title { font-size: 17px; font-weight: 700; }
+  .header-sub { font-size: 12px; color: var(--tg-theme-hint-color, #888); margin-top: 2px; }
+
+  .section {
+    background: var(--tg-theme-secondary-bg-color, #fff);
+    margin: 10px 12px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .section-title {
+    padding: 10px 14px 6px;
+    font-size: 12px; font-weight: 600;
+    color: var(--tg-theme-hint-color, #888);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .row:first-of-type { border-top: none; }
+  .row-label { color: var(--tg-theme-hint-color, #888); font-size: 13px; }
+  .row-value { font-weight: 600; font-size: 13px; text-align: right; max-width: 60%; }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  }
+  .status-pending { background: #fff3cd; color: #856404; }
+  .status-verified { background: #d4edda; color: #155724; }
+  .status-rejected { background: #f8d7da; color: #721c24; }
+
+  .photo-wrap { padding: 12px 14px; }
+  .photo-wrap img {
+    width: 100%; border-radius: 10px; max-height: 280px; object-fit: cover;
+  }
+
+  .answer-item { padding: 10px 14px; border-top: 1px solid rgba(0,0,0,0.06); }
+  .answer-item:first-child { border-top: none; }
+  .answer-q { font-size: 12px; color: var(--tg-theme-hint-color, #888); margin-bottom: 3px; }
+  .answer-v { font-size: 14px; font-weight: 600; }
+  .answer-photo img { width: 100%; border-radius: 8px; margin-top: 6px; max-height: 220px; object-fit: cover; }
+
+  .map-link {
+    display: flex; align-items: center; gap: 6px;
+    color: #27ae60; font-weight: 600; text-decoration: none; font-size: 13px;
+  }
+
+  /* Fixed bottom buttons */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--tg-theme-secondary-bg-color, #fff);
+    padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(0,0,0,0.08);
+    display: flex; gap: 10px;
+  }
+  .btn {
+    flex: 1; padding: 13px; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .btn-approve { background: #27ae60; color: #fff; }
+  .btn-reject { background: #e74c3c; color: #fff; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Success state */
+  .success-screen {
+    display: none; text-align: center; padding: 60px 24px;
+  }
+  .success-icon { font-size: 64px; margin-bottom: 16px; }
+  .success-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .success-sub { color: var(--tg-theme-hint-color, #888); }
+
+  .reject-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 100; align-items: flex-end;
+  }
+  .reject-modal.open { display: flex; }
+  .reject-sheet {
+    background: var(--tg-theme-secondary-bg-color, #fff);
+    border-radius: 16px 16px 0 0; padding: 20px; width: 100%;
+  }
+  .reject-sheet h3 { margin-bottom: 12px; font-size: 16px; }
+  .reject-sheet textarea {
+    width: 100%; border: 1.5px solid rgba(0,0,0,0.15); border-radius: 8px;
+    padding: 10px; font-size: 14px; resize: none; height: 90px;
+    background: var(--tg-theme-bg-color, #f0f0f0);
+    color: var(--tg-theme-text-color, #000);
+  }
+  .reject-actions { display: flex; gap: 10px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div id="mainContent">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">🤝</div>
+    <div>
+      <div class="header-title">{{ meeting.youth.full_name }}</div>
+      <div class="header-sub">{{ meeting.date|date:"d.m.Y H:i" }} · {{ webapp_user.get_full_name }}</div>
+    </div>
+  </div>
+
+  <!-- Asosiy ma'lumotlar -->
+  <div class="section-title" style="padding:12px 14px 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.5px">Uchrashuv</div>
+  <div class="section">
+    <div class="row">
+      <span class="row-label">Yosh</span>
+      <span class="row-value">{{ meeting.youth.full_name }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Rahbar</span>
+      <span class="row-value">{{ meeting.rahbar.get_full_name }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Sana</span>
+      <span class="row-value">{{ meeting.date|date:"d.m.Y H:i" }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Holat</span>
+      <span class="row-value">
+        {% if meeting.status == 'verified' or meeting.status == 'force_approved' %}
+          <span class="status-badge status-verified">✅ Tasdiqlandi</span>
+        {% elif meeting.status == 'pending' %}
+          <span class="status-badge status-pending">⏳ Kutilmoqda</span>
+        {% elif meeting.status == 'rejected' %}
+          <span class="status-badge status-rejected">❌ Rad etildi</span>
+        {% endif %}
+      </span>
+    </div>
+    {% if meeting.latitude %}
+    <div class="row">
+      <span class="row-label">Lokatsiya</span>
+      <span class="row-value">
+        <a href="https://www.google.com/maps?q={{ meeting.latitude }},{{ meeting.longitude }}"
+           target="_blank" class="map-link">🗺️ Xaritada ko'rish</a>
+      </span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Rasm -->
+  {% if meeting.photo %}
+  <div class="section-title" style="padding:8px 14px 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.5px">Rasm</div>
+  <div class="section">
+    <div class="photo-wrap">
+      <img src="{{ meeting.photo.url }}" alt="Uchrashuv rasmi">
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- So'rovnoma javoblari -->
+  {% if answers %}
+  <div class="section-title" style="padding:8px 14px 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.5px">So'rovnoma javoblari</div>
+  <div class="section">
+    {% for ans in answers %}
+    <div class="answer-item">
+      <div class="answer-q">{{ forloop.counter }}. {{ ans.q }}</div>
+      {% if ans.type == 'photo' %}
+        {% if meeting.photo %}
+        <div class="answer-photo">
+          <img src="{{ meeting.photo.url }}" alt="Rasm">
+        </div>
+        {% else %}
+        <div class="answer-v">📸 Rasm yuklandi</div>
+        {% endif %}
+      {% elif ans.type == 'location' %}
+        <a href="https://www.google.com/maps?q={{ ans.value }}" target="_blank" class="map-link" style="margin-top:4px;display:inline-flex">
+          🗺️ {{ ans.value }}
+        </a>
+      {% else %}
+        <div class="answer-v">{{ ans.value }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Muvaffaqiyat ekrani -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon" id="successIcon">✅</div>
+  <div class="success-title" id="successTitle">Tasdiqlandi!</div>
+  <div class="success-sub" id="successSub">Uchrashuv muvaffaqiyatli tasdiqlandi</div>
+</div>
+
+<!-- Rad etish modal -->
+<div class="reject-modal" id="rejectModal">
+  <div class="reject-sheet">
+    <h3>❌ Rad etish sababi</h3>
+    <textarea id="rejectReason" placeholder="Nima uchun rad etilmoqda?..."></textarea>
+    <div class="reject-actions">
+      <button class="btn" style="background:#eee;color:#333" onclick="closeRejectModal()">Bekor</button>
+      <button class="btn btn-reject" onclick="confirmReject()">Rad etish</button>
+    </div>
+  </div>
+</div>
+
+{% if can_verify %}
+<!-- Tasdiqlash tugmalari -->
+<div class="bottom-bar" id="bottomBar">
+  <button class="btn btn-reject" onclick="openRejectModal()">❌ Rad etish</button>
+  <button class="btn btn-approve" onclick="doVerify('approve')">✅ Tasdiqlash</button>
+</div>
+{% endif %}
+
+<script>
+var twa = window.Telegram && window.Telegram.WebApp;
+if (twa) { twa.ready(); twa.expand(); }
+
+function doVerify(action, reason) {
+  var btns = document.querySelectorAll('.btn');
+  btns.forEach(function(b) { b.disabled = true; });
+
+  fetch('/uchrashuvlar/webapp/uchrashuv/{{ meeting.id }}/tasdiqlash/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: action, reason: reason || ''}),
+    credentials: 'include'
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) {
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('bottomBar') && (document.getElementById('bottomBar').style.display = 'none');
+      var sc = document.getElementById('successScreen');
+      sc.style.display = 'block';
+      if (action === 'approve') {
+        document.getElementById('successIcon').textContent = '✅';
+        document.getElementById('successTitle').textContent = 'Tasdiqlandi!';
+        document.getElementById('successSub').textContent = 'Uchrashuv muvaffaqiyatli tasdiqlandi. PDF yaratildi.';
+      } else {
+        document.getElementById('successIcon').textContent = '❌';
+        document.getElementById('successTitle').textContent = 'Rad etildi';
+        document.getElementById('successSub').textContent = 'Uchrashuv rad etildi.';
+      }
+      if (twa) { setTimeout(function() { twa.close(); }, 2000); }
+    } else {
+      alert(d.error || 'Xatolik yuz berdi');
+      btns.forEach(function(b) { b.disabled = false; });
+    }
+  })
+  .catch(function(e) {
+    alert('Tarmoq xatosi: ' + e.message);
+    btns.forEach(function(b) { b.disabled = false; });
+  });
+}
+
+function openRejectModal() {
+  document.getElementById('rejectModal').classList.add('open');
+}
+function closeRejectModal() {
+  document.getElementById('rejectModal').classList.remove('open');
+}
+function confirmReject() {
+  var reason = document.getElementById('rejectReason').value.trim();
+  closeRejectModal();
+  doVerify('reject', reason);
+}
+</script>
+</body>
+</html>

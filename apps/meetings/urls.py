@@ -25,6 +25,11 @@ urlpatterns = [
     path('api/my-yetakchilar/', views.bot_my_yetakchilar, name='api_my_yetakchilar'),
     path('api/my-stats/', views.bot_my_stats, name='api_my_stats'),
 
+    # Telegram WebApp (yetakchi tasdiqlash)
+    path('webapp/auth/', views.webapp_auth, name='webapp_auth'),
+    path('webapp/uchrashuv/<int:pk>/', views.webapp_meeting, name='webapp_meeting'),
+    path('webapp/uchrashuv/<int:pk>/tasdiqlash/', views.webapp_verify_action, name='webapp_verify'),
+
     # API endpoints (bot uchun)
     path('api/camera/create/', views.camera_create_api, name='api_camera_create'),
     path('api/list/', views.MeetingListCreateAPI.as_view(), name='api_list'),
