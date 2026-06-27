@@ -55,11 +55,14 @@ def generate_pdf(meeting):
     qr_bytes = generate_qr_code(qr_code_str)
     qr_img = RLImage(io.BytesIO(qr_bytes), width=3*cm, height=3*cm)
 
-    # Meeting photo — o'ng yuqori burchakda
+    # Tepa o'ng burchak — rasm1.png (belgi/logo)
+    import os as _os
+    from django.conf import settings as _cfg
     photo_img = None
-    if meeting.photo:
+    logo_path = _os.path.join(_cfg.BASE_DIR, 'rasm1.png')
+    if _os.path.exists(logo_path):
         try:
-            photo_img = RLImage(meeting.photo.path, width=3*cm, height=3.5*cm)
+            photo_img = RLImage(logo_path, width=3*cm, height=3.5*cm)
         except Exception:
             pass
 
@@ -136,13 +139,16 @@ def generate_pdf(meeting):
                     val = ans.get('value', '')
                     if q_type == 'photo':
                         elements.append(Paragraph(f"{i}. <b>{q_txt}:</b>", normal))
+                        photo_added = False
                         if meeting.photo:
                             try:
-                                ph = RLImage(meeting.photo.path, width=8*cm, height=6*cm)
+                                ph = RLImage(meeting.photo.path, width=10*cm, height=7*cm)
+                                elements.append(Spacer(1, 0.1*cm))
                                 elements.append(ph)
+                                photo_added = True
                             except Exception:
-                                elements.append(Paragraph("  [Rasm yuklandi]", normal))
-                        else:
+                                pass
+                        if not photo_added:
                             elements.append(Paragraph("  [Rasm yuklandi]", normal))
                         elements.append(Spacer(1, 0.2*cm))
                     elif q_type == 'location':
