@@ -55,7 +55,7 @@ def generate_pdf(meeting):
     qr_bytes = generate_qr_code(qr_code_str)
     qr_img = RLImage(io.BytesIO(qr_bytes), width=3*cm, height=3*cm)
 
-    # Tepa o'ng burchak — rasm1.png (belgi/logo)
+    # Tepa o'ng burchak — YOUTHGUARD matni + rasm1.png
     import os as _os
     from django.conf import settings as _cfg
     photo_img = None
@@ -66,19 +66,25 @@ def generate_pdf(meeting):
         except Exception:
             pass
 
-    # Sarlavha + rasm — o'ng yuqori
-    title_left_style = ParagraphStyle('title_left', parent=styles['Heading1'],
-                                       fontSize=16, spaceAfter=4, alignment=0,
-                                       textColor=colors.HexColor('#1a5276'))
-    sub_left_style = ParagraphStyle('sub_left', parent=styles['Normal'],
-                                    fontSize=9, textColor=colors.grey)
-    header_content = [
-        Paragraph("YOUTHGUARD", title_left_style),
-        Paragraph("Yoshlar bilan uchrashuv dalolatnomasi", sub_left_style),
-    ]
+    corner_style = ParagraphStyle('corner_style', parent=styles['Normal'],
+                                   fontSize=13, fontName='Helvetica-Bold',
+                                   alignment=2, textColor=colors.HexColor('#1a5276'),
+                                   spaceAfter=3)
+    right_col = [Paragraph("YOUTHGUARD", corner_style)]
+    if photo_img:
+        img_wrapper = Table([[photo_img]], colWidths=[7*cm])
+        img_wrapper.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        right_col.append(img_wrapper)
+
     from reportlab.platypus import KeepTogether
-    header_row = [[header_content, photo_img or '']]
-    header_tbl = Table(header_row, colWidths=[13*cm, 4*cm])
+    header_row = [['', right_col]]
+    header_tbl = Table(header_row, colWidths=[10*cm, 7*cm])
     header_tbl.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
@@ -88,6 +94,13 @@ def generate_pdf(meeting):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     elements.append(header_tbl)
+
+    # Markazda katta sarlavha
+    main_title_style = ParagraphStyle('main_title', parent=styles['Normal'],
+                                       fontSize=16, fontName='Helvetica-Bold',
+                                       alignment=1, textColor=colors.HexColor('#1a5276'),
+                                       spaceAfter=6)
+    elements.append(Paragraph("Yoshlar bilan uchrashuv dalolatnomasi", main_title_style))
     elements.append(Spacer(1, 0.4*cm))
 
     # Toshkent vaqti (UTC+5)
