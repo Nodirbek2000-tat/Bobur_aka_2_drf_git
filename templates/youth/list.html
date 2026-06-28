@@ -15,51 +15,85 @@
 {% endblock %}
 
 {% block content %}
+<style>
+.yf-wrap { display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
+.yf-search { flex:1; min-width:200px; position:relative; }
+.yf-search input { padding-left:40px; border-radius:10px; }
+.yf-search i { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; }
+.yf-sel { flex:1; min-width:150px; max-width:210px; border-radius:10px !important; }
+.yf-dates {
+  display:flex; align-items:center; gap:6px;
+  flex:1; min-width:220px;
+  background:var(--card-bg,#fff);
+  border:2px solid var(--primary,#6A0DAD);
+  border-radius:20px;
+  padding:4px 14px;
+}
+.yf-dates input[type="date"] {
+  border:none; outline:none; background:transparent;
+  font-size:13px; color:var(--text,#333);
+  flex:1; min-width:0;
+  cursor:pointer;
+  padding:4px 0;
+}
+.yf-dates .sep { color:var(--text-muted); font-size:15px; font-weight:600; flex-shrink:0; }
+.yf-uchrashdi { flex:1; min-width:140px; max-width:180px; border-radius:20px !important; }
+.yf-actions { display:flex; gap:8px; align-items:center; }
+@media(max-width:600px){
+  .yf-sel { max-width:none; }
+  .yf-uchrashdi { max-width:none; }
+  .yf-dates { min-width:0; width:100%; }
+  .yf-actions { width:100%; }
+  .yf-actions .btn { flex:1; justify-content:center; }
+}
+</style>
 <!-- Qidiruv va filtrlar -->
 <div class="card" style="margin-bottom:20px">
   <div class="card-body" style="padding:16px 20px">
     <form method="GET">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1;min-width:180px;position:relative">
-          <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)"></i>
-          <input type="text" name="q" value="{{ search }}" class="form-control" placeholder="Ism bo'yicha qidirish..." style="padding-left:40px">
+      <div class="yf-wrap">
+        <!-- Qidiruv -->
+        <div class="yf-search">
+          <i class="fas fa-search"></i>
+          <input type="text" name="q" value="{{ search }}" class="form-control" placeholder="Ism bo'yicha qidirish...">
         </div>
+        <!-- Tuman -->
         {% if districts %}
-        <select name="district" class="form-control" style="width:175px">
+        <select name="district" class="form-control yf-sel">
           <option value="">— Barcha tumanlar —</option>
           {% for d in districts %}
           <option value="{{ d.id }}" {% if district_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
           {% endfor %}
         </select>
         {% endif %}
+        <!-- Tizim -->
         {% if tizim_values %}
-        <select name="tizim" class="form-control" style="width:200px">
+        <select name="tizim" class="form-control yf-sel">
           <option value="">— Barcha tizimlar —</option>
           {% for t in tizim_values %}
           <option value="{{ t }}" {% if tizim_filter == t %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
         {% endif %}
-        <!-- Sana filtri -->
-        <div style="display:flex;align-items:center;gap:4px">
-          <input type="date" name="date_from" value="{{ date_from }}" class="form-control"
-                 style="width:132px;border-radius:20px;font-size:12px;padding:6px 10px"
-                 title="Dan">
-          <span style="color:var(--text-muted);font-size:13px">—</span>
-          <input type="date" name="date_to" value="{{ date_to }}" class="form-control"
-                 style="width:132px;border-radius:20px;font-size:12px;padding:6px 10px"
-                 title="Gacha">
+        <!-- Sana oralig'i — pill ko'rinish -->
+        <div class="yf-dates">
+          <input type="date" name="date_from" value="{{ date_from }}" title="Dan">
+          <span class="sep">—</span>
+          <input type="date" name="date_to" value="{{ date_to }}" title="Gacha">
         </div>
         <!-- Uchrashdi/Uchrashmadi -->
-        <select name="uchrashdi" class="form-control" style="width:160px;border-radius:20px">
+        <select name="uchrashdi" class="form-control yf-uchrashdi">
           <option value="">— Barchasi —</option>
           <option value="uchrashdi" {% if uchrashdi_filter == 'uchrashdi' %}selected{% endif %}>✓ Uchrashdi</option>
           <option value="uchrashmadi" {% if uchrashdi_filter == 'uchrashmadi' %}selected{% endif %}>— Uchrashmadi</option>
         </select>
-        <button type="submit" class="btn btn-primary" style="white-space:nowrap"><i class="fas fa-filter"></i> Filtr</button>
-        {% if search or tizim_filter or district_filter or date_from or date_to or uchrashdi_filter %}
-        <a href="?" class="btn btn-outline"><i class="fas fa-times"></i></a>
-        {% endif %}
+        <!-- Tugmalar -->
+        <div class="yf-actions">
+          <button type="submit" class="btn btn-primary" style="white-space:nowrap"><i class="fas fa-filter"></i> Filtr</button>
+          {% if search or tizim_filter or district_filter or date_from or date_to or uchrashdi_filter %}
+          <a href="?" class="btn btn-outline" title="Tozalash"><i class="fas fa-times"></i></a>
+          {% endif %}
+        </div>
       </div>
     </form>
   </div>
