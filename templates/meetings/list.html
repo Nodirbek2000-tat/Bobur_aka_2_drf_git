@@ -4,6 +4,10 @@
 
 {% block topbar_actions %}
 <a href="/uchrashuvlar/statistika/" class="btn btn-outline btn-sm"><i class="fas fa-chart-line"></i> Oylik statistika</a>
+<a href="/uchrashuvlar/export/excel/?{% if status_filter %}status={{ status_filter }}&{% endif %}{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if tizim_filter %}tizim={{ tizim_filter }}{% endif %}"
+   class="btn btn-sm" style="background:#217346;color:#fff;display:inline-flex;align-items:center;gap:6px">
+  <i class="fas fa-file-excel"></i> Excel yuklab olish
+</a>
 <span style="font-size:13px;color:var(--text-muted)">Jami: <b>{{ page.paginator.count }}</b></span>
 {% endblock %}
 

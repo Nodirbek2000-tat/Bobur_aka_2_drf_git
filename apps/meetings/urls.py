@@ -6,6 +6,7 @@ app_name = 'meetings'
 urlpatterns = [
     # Web views
     path('', views.meetings_list, name='list'),
+    path('export/excel/', views.meetings_export_excel, name='export_excel'),
     path('statistika/', views.meetings_stats, name='stats'),
     path('<int:pk>/', views.meeting_detail, name='detail'),
     path('<int:pk>/pdf/', views.download_pdf, name='pdf'),

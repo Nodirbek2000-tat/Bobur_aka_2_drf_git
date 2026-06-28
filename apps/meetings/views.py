@@ -312,6 +312,136 @@ def meetings_list(request):
 
 
 @login_required
+def meetings_export_excel(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    from django.utils import timezone as _tz
+    import io
+
+    user = request.user
+    qs = Meeting.objects.select_related('rahbar', 'youth').order_by('-date')
+    if user.role == 'rahbar':
+        qs = qs.filter(rahbar=user)
+    elif user.role == 'yetakchi':
+        qs = qs.filter(youth__yetakchi=user)
+
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    tizim_filter = request.GET.get('tizim', '')
+
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if date_from:
+        try:
+            qs = qs.filter(date__date__gte=date_from)
+        except Exception:
+            pass
+    if date_to:
+        try:
+            qs = qs.filter(date__date__lte=date_to)
+        except Exception:
+            pass
+    if tizim_filter:
+        qs = qs.filter(youth__notes__icontains=f'Biriktirilgan tizim: {tizim_filter}')
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Uchrashuvlar"
+
+    # Styles
+    header_fill = PatternFill(start_color="6A0DAD", end_color="6A0DAD", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    thin = Side(border_style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = ["#", "Rahbar", "Yosh (Ism)", "Sana", "Vaqt", "GPS / Lokatsiya", "Uchrashdimi?"]
+    col_widths = [5, 30, 30, 14, 8, 45, 15]
+
+    for col, (h, w) in enumerate(zip(headers, col_widths), start=1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center
+        cell.border = border
+        ws.column_dimensions[get_column_letter(col)].width = w
+    ws.row_dimensions[1].height = 22
+
+    # Alternating row colors
+    row_fills = [
+        PatternFill(start_color="F8F4FF", end_color="F8F4FF", fill_type="solid"),
+        PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"),
+    ]
+    uchrashdi_fill = PatternFill(start_color="D4EDDA", end_color="D4EDDA", fill_type="solid")
+    uchrashmadi_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+    rad_fill = PatternFill(start_color="F8D7DA", end_color="F8D7DA", fill_type="solid")
+
+    for i, m in enumerate(qs, start=1):
+        row = i + 1
+        local_dt = _tz.localtime(m.date)
+
+        if m.status in ('verified', 'force_approved'):
+            status_txt = "✓ Uchrashdi"
+            row_fill = uchrashdi_fill
+        elif m.status == 'rejected':
+            status_txt = "✗ Rad etildi"
+            row_fill = rad_fill
+        else:
+            status_txt = "— Uchrashmadi"
+            row_fill = uchrashmadi_fill
+
+        if m.latitude:
+            gps_txt = f"https://maps.google.com/?q={m.latitude},{m.longitude}"
+        else:
+            gps_txt = "—"
+
+        row_data = [
+            i,
+            m.rahbar.get_full_name() or m.rahbar.username,
+            m.youth.full_name,
+            local_dt.date(),
+            local_dt.strftime("%H:%M"),
+            gps_txt,
+            status_txt,
+        ]
+        for col, val in enumerate(row_data, start=1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.border = border
+            cell.fill = row_fill if col != 7 else (
+                uchrashdi_fill if "Uchrashdi" in str(val)
+                else rad_fill if "Rad" in str(val)
+                else uchrashmadi_fill
+            )
+            cell.alignment = center if col in (1, 5, 7) else left
+            if col == 4:
+                cell.number_format = "DD.MM.YYYY"
+            if col == 7:
+                cell.font = Font(
+                    bold=True,
+                    color="155724" if "Uchrashdi" in str(val)
+                    else ("721C24" if "Rad" in str(val) else "856404")
+                )
+
+    ws.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    fname = f"uchrashuvlar_{_tz.localtime(_tz.now()).strftime('%Y%m%d_%H%M')}.xlsx"
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{fname}"'
+    return response
+
+
+@login_required
 def meeting_detail(request, pk):
     import json as _j
     meeting = get_object_or_404(Meeting, pk=pk)
