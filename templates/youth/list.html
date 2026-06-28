@@ -174,18 +174,58 @@
 {% if page.has_other_pages %}
 <div class="pagination">
   {% if page.has_previous %}
-    <a href="?page={{ page.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if tizim_filter %}&tizim={{ tizim_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
+    <a href="?page={{ page.previous_page_number }}" class="page-btn pager-link"><i class="fas fa-chevron-left"></i></a>
   {% endif %}
   {% for n in page.paginator.page_range %}
     {% if n == page.number %}
       <span class="page-btn active">{{ n }}</span>
     {% elif n >= page.number|add:"-2" and n <= page.number|add:"2" %}
-      <a href="?page={{ n }}{% if search %}&q={{ search }}{% endif %}{% if tizim_filter %}&tizim={{ tizim_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn">{{ n }}</a>
+      <a href="?page={{ n }}" class="page-btn pager-link">{{ n }}</a>
     {% endif %}
   {% endfor %}
   {% if page.has_next %}
-    <a href="?page={{ page.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if tizim_filter %}&tizim={{ tizim_filter }}{% endif %}{% if district_filter %}&district={{ district_filter }}{% endif %}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+    <a href="?page={{ page.next_page_number }}" class="page-btn pager-link"><i class="fas fa-chevron-right"></i></a>
   {% endif %}
 </div>
 {% endif %}
+
+<script>
+(function() {
+  var form = document.querySelector('form[method="GET"]');
+  if (!form) return;
+
+  // 1. Pagination — hozirgi barcha filtrlarni saqlab page ni almashtiradi
+  var curParams = new URLSearchParams(window.location.search);
+  document.querySelectorAll('.pager-link').forEach(function(link) {
+    var p = new URLSearchParams(link.href.split('?')[1] || '');
+    var merged = new URLSearchParams(curParams.toString());
+    merged.set('page', p.get('page') || '1');
+    link.href = '?' + merged.toString();
+  });
+
+  // 2. Select o'zgarganda — darhol submit
+  form.querySelectorAll('select').forEach(function(sel) {
+    sel.addEventListener('change', function() { form.submit(); });
+  });
+
+  // 3. Sana o'zgarganda — darhol submit
+  form.querySelectorAll('input[type="date"]').forEach(function(inp) {
+    inp.addEventListener('change', function() { form.submit(); });
+  });
+
+  // 4. Search — 600ms debounce, page=1 ga qaytaradi
+  var qInput = form.querySelector('input[name="q"]');
+  var timer;
+  if (qInput) {
+    qInput.addEventListener('input', function() {
+      clearTimeout(timer);
+      timer = setTimeout(function() {
+        var params = new URLSearchParams(new FormData(form));
+        params.delete('page');
+        window.location.href = '?' + params.toString();
+      }, 600);
+    });
+  }
+})();
+</script>
 {% endblock %}
