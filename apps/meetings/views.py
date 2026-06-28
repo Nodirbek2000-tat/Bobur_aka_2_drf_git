@@ -270,7 +270,7 @@ def meetings_list(request):
     status_filter = request.GET.get('status', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
-    org_filter = request.GET.get('org', '')
+    tizim_filter = request.GET.get('tizim', '')
 
     if status_filter:
         qs = qs.filter(status=status_filter)
@@ -284,10 +284,19 @@ def meetings_list(request):
             qs = qs.filter(date__date__lte=date_to)
         except Exception:
             pass
-    if org_filter:
-        qs = qs.filter(rahbar__organization_id=org_filter)
+    if tizim_filter:
+        qs = qs.filter(youth__notes__icontains=f'Biriktirilgan tizim: {tizim_filter}')
 
-    orgs = Organization.objects.all() if user.is_admin else Organization.objects.none()
+    from apps.youth.models import Youth
+    tizim_values = set()
+    for notes in Youth.objects.filter(notes__icontains='Biriktirilgan tizim:').values_list('notes', flat=True):
+        for line in (notes or '').split('\n'):
+            line = line.strip()
+            if line.startswith('Biriktirilgan tizim:'):
+                val = line.replace('Biriktirilgan tizim:', '').strip()
+                if val:
+                    tizim_values.add(val)
+    tizim_values = sorted(tizim_values)
 
     paginator = Paginator(qs, 15)
     page = paginator.get_page(request.GET.get('page', 1))
@@ -297,8 +306,8 @@ def meetings_list(request):
         'status_choices': Meeting.STATUS_CHOICES,
         'date_from': date_from,
         'date_to': date_to,
-        'org_filter': org_filter,
-        'orgs': orgs,
+        'tizim_filter': tizim_filter,
+        'tizim_values': tizim_values,
     })
 
 

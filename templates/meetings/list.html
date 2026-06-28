@@ -19,16 +19,16 @@
         <span style="color:var(--text-muted)">–</span>
         <input type="date" name="date_to" value="{{ date_to }}" class="form-control" style="width:148px">
       </div>
-      {% if orgs %}
-      <select name="org" class="form-control" style="width:220px">
-        <option value="">— Barcha tashkilotlar —</option>
-        {% for o in orgs %}
-        <option value="{{ o.id }}" {% if org_filter == o.id|stringformat:"s" %}selected{% endif %}>{{ o.name }}</option>
+      {% if tizim_values %}
+      <select name="tizim" class="form-control" style="width:220px">
+        <option value="">— Barcha tizimlar —</option>
+        {% for t in tizim_values %}
+        <option value="{{ t }}" {% if tizim_filter == t %}selected{% endif %}>{{ t }}</option>
         {% endfor %}
       </select>
       {% endif %}
       <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Filtr</button>
-      {% if date_from or date_to or org_filter %}
+      {% if date_from or date_to or tizim_filter %}
       <a href="?{% if status_filter %}status={{ status_filter }}{% endif %}" class="btn btn-outline btn-sm"><i class="fas fa-times"></i> Tozalash</a>
       {% endif %}
     </form>
