@@ -5,6 +5,7 @@ app_name = 'youth'
 
 urlpatterns = [
     path('', views.youth_list, name='list'),
+    path('export/excel/', views.youth_export_excel, name='export_excel'),
     path('<int:pk>/', views.youth_detail, name='detail'),
     path('import/', views.import_excel, name='import'),
     path('import/sample/', views.sample_excel, name='sample_excel'),

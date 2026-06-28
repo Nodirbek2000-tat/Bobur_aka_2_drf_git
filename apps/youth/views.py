@@ -76,6 +76,56 @@ class YouthDetailAPI(generics.RetrieveAPIView):
         return qs
 
 
+def _youth_tizim_values():
+    tizim_values = set()
+    for notes in Youth.objects.filter(notes__icontains='Biriktirilgan tizim:').values_list('notes', flat=True):
+        for line in (notes or '').split('\n'):
+            line = line.strip()
+            if line.startswith('Biriktirilgan tizim:'):
+                val = line.replace('Biriktirilgan tizim:', '').strip()
+                if val:
+                    tizim_values.add(val)
+    return sorted(tizim_values)
+
+
+def _youth_filter_qs(qs, request):
+    """Barcha filtrlarni qo'llaydi va annotate qiladi."""
+    from django.db.models import Count, Q
+    search = request.GET.get('q', '')
+    tizim_filter = request.GET.get('tizim', '')
+    district_filter = request.GET.get('district', '')
+    uchrashdi_filter = request.GET.get('uchrashdi', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if search:
+        qs = qs.filter(full_name__icontains=search)
+    if tizim_filter:
+        qs = qs.filter(notes__icontains=f'Biriktirilgan tizim: {tizim_filter}')
+    if district_filter:
+        qs = qs.filter(organization__district_id=district_filter)
+
+    meeting_q = Q(meetings__status__in=['verified', 'force_approved'])
+    if date_from:
+        try:
+            meeting_q &= Q(meetings__date__date__gte=date_from)
+        except Exception:
+            pass
+    if date_to:
+        try:
+            meeting_q &= Q(meetings__date__date__lte=date_to)
+        except Exception:
+            pass
+    qs = qs.annotate(range_count=Count('meetings', filter=meeting_q, distinct=True))
+
+    if uchrashdi_filter == 'uchrashdi':
+        qs = qs.filter(range_count__gte=1)
+    elif uchrashdi_filter == 'uchrashmadi':
+        qs = qs.filter(range_count=0)
+
+    return qs
+
+
 @login_required
 def youth_list(request):
     user = request.user
@@ -85,16 +135,7 @@ def youth_list(request):
     elif user.role == 'yetakchi':
         qs = qs.filter(yetakchi=user)
 
-    search = request.GET.get('q', '')
-    tizim_filter = request.GET.get('tizim', '')
-    district_filter = request.GET.get('district', '')
-
-    if search:
-        qs = qs.filter(full_name__icontains=search)
-    if tizim_filter:
-        qs = qs.filter(notes__icontains=f'Biriktirilgan tizim: {tizim_filter}')
-    if district_filter:
-        qs = qs.filter(organization__district_id=district_filter)
+    qs = _youth_filter_qs(qs, request)
 
     total = qs.count()
     paginator = Paginator(qs, 20)
@@ -102,30 +143,114 @@ def youth_list(request):
 
     districts = District.objects.all() if user.is_admin else District.objects.none()
 
-    # Unique tizim qiymatlarini notes dan ajratib olish
-    tizim_values = set()
-    for notes in Youth.objects.filter(notes__icontains='Biriktirilgan tizim:').values_list('notes', flat=True):
-        for line in (notes or '').split('\n'):
-            line = line.strip()
-            if line.startswith('Biriktirilgan tizim:'):
-                val = line.replace('Biriktirilgan tizim:', '').strip()
-                if val:
-                    tizim_values.add(val)
-    tizim_values = sorted(tizim_values)
-
     from apps.surveys.models import Survey
     has_active_survey = Survey.objects.filter(is_active=True).exists()
 
     return render(request, 'youth/list.html', {
         'page': page,
-        'search': search,
+        'search': request.GET.get('q', ''),
         'total': total,
-        'tizim_filter': tizim_filter,
-        'district_filter': district_filter,
-        'tizim_values': tizim_values,
+        'tizim_filter': request.GET.get('tizim', ''),
+        'district_filter': request.GET.get('district', ''),
+        'uchrashdi_filter': request.GET.get('uchrashdi', ''),
+        'date_from': request.GET.get('date_from', ''),
+        'date_to': request.GET.get('date_to', ''),
+        'tizim_values': _youth_tizim_values(),
         'districts': districts,
         'has_active_survey': has_active_survey,
     })
+
+
+@login_required
+def youth_export_excel(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    from django.utils import timezone as _tz
+    import io
+
+    user = request.user
+    qs = Youth.objects.filter(is_active=True).select_related('organization', 'organization__district', 'rahbar', 'yetakchi')
+    if user.role == 'rahbar':
+        qs = qs.filter(rahbar=user)
+    elif user.role == 'yetakchi':
+        qs = qs.filter(yetakchi=user)
+
+    qs = _youth_filter_qs(qs, request)
+
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Yoshlar"
+
+    if date_from and date_to:
+        header_title = f"{date_from} – {date_to} oralig'ida yoshlar bilan uchrashuvlar ro'yxati"
+    elif date_from:
+        header_title = f"{date_from} dan boshlab yoshlar bilan uchrashuvlar ro'yxati"
+    elif date_to:
+        header_title = f"{date_to} gacha yoshlar bilan uchrashuvlar ro'yxati"
+    else:
+        header_title = "Yoshlar ro'yxati (barcha uchrashuvlar)"
+
+    ws.merge_cells('A1:F1')
+    title_cell = ws['A1']
+    title_cell.value = header_title
+    title_cell.font = Font(bold=True, size=13)
+    title_cell.alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 30
+
+    thin = Side(border_style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_al = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    header_fill = PatternFill(start_color="6A0DAD", end_color="6A0DAD", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    green_fill = PatternFill(start_color="D4EDDA", end_color="D4EDDA", fill_type="solid")
+    yellow_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+    row_fills = [
+        PatternFill(start_color="F8F4FF", end_color="F8F4FF", fill_type="solid"),
+        PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"),
+    ]
+
+    headers = ["#", "Ism", "Yosh", "Kategoriya", "MFY", "Uchrashuvlar"]
+    col_widths = [5, 35, 8, 32, 28, 16]
+    for col, (h, w) in enumerate(zip(headers, col_widths), start=1):
+        cell = ws.cell(row=2, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center
+        cell.border = border
+        ws.column_dimensions[get_column_letter(col)].width = w
+    ws.row_dimensions[2].height = 22
+
+    for i, y in enumerate(qs, start=1):
+        row = i + 2
+        cnt = y.range_count
+        base_fill = row_fills[i % 2]
+        row_data = [i, y.full_name, f"{y.age} yosh", y.get_category_display(),
+                    str(y.organization) if y.organization else "—", f"{cnt} marta"]
+        for col, val in enumerate(row_data, start=1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.border = border
+            cell.alignment = center if col in (1, 3, 6) else left_al
+            if col == 6:
+                cell.fill = green_fill if cnt > 0 else yellow_fill
+                cell.font = Font(bold=True, color="155724" if cnt > 0 else "856404")
+            else:
+                cell.fill = base_fill
+
+    ws.freeze_panes = "A3"
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"yoshlar_{_tz.localtime(_tz.now()).strftime('%Y%m%d_%H%M')}.xlsx"
+    response = HttpResponse(buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="{fname}"'
+    return response
 
 
 @login_required

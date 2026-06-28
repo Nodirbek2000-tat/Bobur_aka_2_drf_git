@@ -8,6 +8,10 @@
   <i class="fas fa-file-excel"></i> Excel import
 </a>
 {% endif %}
+<a href="/yoshlar/export/excel/?{{ request.GET.urlencode }}"
+   class="btn btn-sm" style="background:#217346;color:#fff;display:inline-flex;align-items:center;gap:6px">
+  <i class="fas fa-file-excel"></i> Excel yuklab olish
+</a>
 {% endblock %}
 
 {% block content %}
@@ -16,12 +20,12 @@
   <div class="card-body" style="padding:16px 20px">
     <form method="GET">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px;position:relative">
+        <div style="flex:1;min-width:180px;position:relative">
           <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)"></i>
           <input type="text" name="q" value="{{ search }}" class="form-control" placeholder="Ism bo'yicha qidirish..." style="padding-left:40px">
         </div>
         {% if districts %}
-        <select name="district" class="form-control" style="width:190px">
+        <select name="district" class="form-control" style="width:175px">
           <option value="">— Barcha tumanlar —</option>
           {% for d in districts %}
           <option value="{{ d.id }}" {% if district_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
@@ -29,15 +33,31 @@
         </select>
         {% endif %}
         {% if tizim_values %}
-        <select name="tizim" class="form-control" style="width:220px">
+        <select name="tizim" class="form-control" style="width:200px">
           <option value="">— Barcha tizimlar —</option>
           {% for t in tizim_values %}
           <option value="{{ t }}" {% if tizim_filter == t %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
         {% endif %}
-        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filtr</button>
-        {% if search or tizim_filter or district_filter %}
+        <!-- Sana filtri -->
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="date" name="date_from" value="{{ date_from }}" class="form-control"
+                 style="width:132px;border-radius:20px;font-size:12px;padding:6px 10px"
+                 title="Dan">
+          <span style="color:var(--text-muted);font-size:13px">—</span>
+          <input type="date" name="date_to" value="{{ date_to }}" class="form-control"
+                 style="width:132px;border-radius:20px;font-size:12px;padding:6px 10px"
+                 title="Gacha">
+        </div>
+        <!-- Uchrashdi/Uchrashmadi -->
+        <select name="uchrashdi" class="form-control" style="width:160px;border-radius:20px">
+          <option value="">— Barchasi —</option>
+          <option value="uchrashdi" {% if uchrashdi_filter == 'uchrashdi' %}selected{% endif %}>✓ Uchrashdi</option>
+          <option value="uchrashmadi" {% if uchrashdi_filter == 'uchrashmadi' %}selected{% endif %}>— Uchrashmadi</option>
+        </select>
+        <button type="submit" class="btn btn-primary" style="white-space:nowrap"><i class="fas fa-filter"></i> Filtr</button>
+        {% if search or tizim_filter or district_filter or date_from or date_to or uchrashdi_filter %}
         <a href="?" class="btn btn-outline"><i class="fas fa-times"></i></a>
         {% endif %}
       </div>
@@ -78,15 +98,16 @@
           <td style="font-size:13px;color:var(--text-muted)">{{ y.organization|default:"—" }}</td>
           <td style="font-size:13px">{{ y.rahbar.get_full_name|default:"—" }}</td>
           <td style="font-size:13px">{{ y.yetakchi.get_full_name|default:"—" }}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div style="height:6px;width:60px;background:var(--border);border-radius:3px;overflow:hidden">
-                {% if y.total_meetings %}
-                <div style="height:100%;width:{% widthratio y.approved_meetings y.total_meetings 100 %}%;background:var(--success);border-radius:3px"></div>
-                {% endif %}
-              </div>
-              <span style="font-size:12px;color:var(--text-muted)">{{ y.approved_meetings }}/{{ y.total_meetings }}</span>
-            </div>
+          <td style="text-align:center">
+            {% if y.range_count > 0 %}
+            <span style="background:#d4edda;color:#155724;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap">
+              {{ y.range_count }} marta
+            </span>
+            {% else %}
+            <span style="background:#fff3cd;color:#856404;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap">
+              0 marta
+            </span>
+            {% endif %}
           </td>
           <td style="display:flex;gap:6px;align-items:center">
             <a href="/yoshlar/{{ y.id }}/" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i></a>
